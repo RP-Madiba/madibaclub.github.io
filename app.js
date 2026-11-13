@@ -43,7 +43,7 @@ const etat = {
   filtreStatut: "avenir", filtreClub: "tous",
   mois: { a: aujourdhui.getFullYear(), m: aujourdhui.getMonth() },
   adminOnglet: "publier", typePublication: "event", info: null,
-  messages: null, fondateurs: null, fondBrouillon: null, contactEnvoye: "", contactCellule: "", typeCompte: "membre", brouillon: null, rechAnnuaire: "", filtreAnnuaire: "tous"
+  messages: null, configPublique: null, infoNotif: null, fondateurs: null, fondBrouillon: null, contactEnvoye: "", contactCellule: "", typeCompte: "membre", brouillon: null, rechAnnuaire: "", filtreAnnuaire: "tous"
 };
 const racine = document.getElementById("app");
 
@@ -214,6 +214,8 @@ async function chargerContenus() {
   }
   try { etat.journaux = await lire("journaux"); } catch (e) { etat.journaux = etat.journaux || []; }
   try { const f = await getDoc(doc(db, "public", "fondateurs")); etat.fondateurs = f.exists() ? f.data() : {}; } catch (e) { etat.fondateurs = etat.fondateurs || {}; }
+  try { const c = await getDoc(doc(db, "public", "config")); etat.configPublique = c.exists() ? c.data() : {}; } catch (e) { etat.configPublique = etat.configPublique || {}; }
+  majJeton();
   afficher(false);
 }
 async function chargerMembres() {
@@ -354,7 +356,7 @@ function pageAccueil() {
       ${blocReseaux()}
       <a class="btn contour" href="#/board">${te("board.titre")}</a>
     </section>`;
-  return haut + erreurContenus() + contenus + presentation + blocInstallation();
+  return haut + erreurContenus() + contenus + presentation + blocNotifications() + blocInstallation();
 }
 
 function blocInstallation() {
@@ -611,6 +613,85 @@ function adminFondateurs() {
     </form></section>`;
 }
 
+/* ---------- Notifications ---------- */
+const lireLocal = (cle) => { try { return localStorage.getItem(cle) || ""; } catch (e) { return ""; } };
+const ecrireLocal = (cle, v) => { try { if (v) localStorage.setItem(cle, v); else localStorage.removeItem(cle); } catch (e) { /* stockage indisponible */ } };
+const cleVapid = () => (etat.configPublique && etat.configPublique.vapidKey) || "";
+const notifActives = () => !!lireLocal("madiba-jeton") && typeof Notification !== "undefined" && Notification.permission === "granted";
+function clubsNotif() {
+  try { const l = JSON.parse(lireLocal("madiba-notif-clubs")); if (Array.isArray(l)) return l.filter((id) => club(id)); } catch (e) { /* pas encore de choix */ }
+  return etat.profil && club(etat.profil.clubId) ? [etat.profil.clubId] : CLUBS.map((c) => c.id);
+}
+const erreurNotif = (code) => Object.assign(new Error(code), { code });
+let messagerie = null;
+async function chargerMessagerie() {
+  if (messagerie) return messagerie;
+  const m = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js");
+  if (!(await m.isSupported())) throw erreurNotif("notif/non-supporte");
+  messagerie = { m, inst: m.getMessaging(fb) };
+  return messagerie;
+}
+const swPret = () => Promise.race([navigator.serviceWorker.ready, new Promise((ok, ko) => setTimeout(() => ko(erreurNotif("notif/non-supporte")), 8000))]);
+async function obtenirJeton() {
+  const { m, inst } = await chargerMessagerie();
+  return m.getToken(inst, { vapidKey: cleVapid(), serviceWorkerRegistration: await swPret() });
+}
+const enregistrerJeton = (jeton, clubs) => setDoc(doc(db, "jetons", jeton), { uid: etat.user ? etat.user.uid : "", clubs, langue: etat.langue, majLe: new Date().toISOString() });
+// À chaque ouverture : on rattache l'appareil au compte connecté (ou on le détache à la déconnexion).
+async function majJeton() {
+  if (!notifActives() || !cleVapid()) return;
+  try {
+    const jeton = await obtenirJeton();
+    if (!jeton) return;
+    ecrireLocal("madiba-jeton", jeton);
+    await enregistrerJeton(jeton, clubsNotif());
+  } catch (e) { /* on réessaiera à la prochaine ouverture */ }
+}
+function blocNotifications() {
+  const actif = notifActives();
+  const choisis = clubsNotif();
+  return `<section class="carte">
+    <h2>${te("notif.titre")}</h2>
+    <p class="gris">${te(actif ? "notif.actives" : "notif.texte")}</p>
+    ${etat.infoNotif ? `<div class="message ${etat.infoNotif.type}" role="alert">${esc(etat.infoNotif.texte)}</div>` : ""}
+    <fieldset class="choix"><legend>${te("notif.clubs")}</legend>
+      ${CLUBS.map((c) => `<label><input type="checkbox" name="notif-club" value="${c.id}"${choisis.includes(c.id) ? " checked" : ""}> ${esc(c.nom)}</label>`).join("")}
+    </fieldset>
+    <div class="rangee">
+      <button class="btn plein" type="button" data-action="notif-activer">${te(actif ? "notif.maj" : "notif.activer")}</button>
+      ${actif ? `<button class="btn contour" type="button" data-action="notif-desactiver">${te("notif.desactiver")}</button>` : ""}
+    </div>
+  </section>`;
+}
+async function activerNotifications() {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const installee = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) throw erreurNotif(ios && !installee ? "notif/ios" : "notif/non-supporte");
+  if (!cleVapid()) throw erreurNotif("notif/pas-pret");
+  const clubs = [...document.querySelectorAll('input[name="notif-club"]:checked')].map((x) => x.value);
+  if ((await Notification.requestPermission()) !== "granted") throw erreurNotif("notif/refuse");
+  const jeton = await obtenirJeton();
+  if (!jeton) throw erreurNotif("notif/erreur");
+  await enregistrerJeton(jeton, clubs);
+  ecrireLocal("madiba-jeton", jeton);
+  ecrireLocal("madiba-notif-clubs", JSON.stringify(clubs));
+}
+async function desactiverNotifications() {
+  const jeton = lireLocal("madiba-jeton");
+  ecrireLocal("madiba-jeton", ""); ecrireLocal("madiba-notif-clubs", "");
+  if (!jeton) return;
+  try { await deleteDoc(doc(db, "jetons", jeton)); } catch (e) { /* déjà supprimé */ }
+  try { const { m, inst } = await chargerMessagerie(); await m.deleteToken(inst); } catch (e) { /* rien à retirer */ }
+}
+function adminNotifications() {
+  return `<section class="carte">
+    <h2>${te("notif.adminTitre")}</h2><p class="gris petit">${te("notif.adminAide")}</p>
+    <form id="form-notif" novalidate>
+      <div class="champ"><label for="vapidKey">${te("notif.cle")}</label><input id="vapidKey" name="vapidKey" autocomplete="off" value="${esc(cleVapid())}"></div>
+      <button class="btn plein large" type="submit">${te("enregistrer")}</button>
+    </form></section>`;
+}
+
 /* ---------- Connexion et inscription ---------- */
 const optionsClubs = (choisi, avecReseau) => `<option value="">${te("choisir")}</option>`
   + CLUBS.concat(avecReseau ? [RESEAU] : []).map((c) => `<option value="${esc(c.id)}"${c.id === choisi ? " selected" : ""}>${esc(nomClub(c.id))}</option>`).join("");
@@ -769,7 +850,7 @@ function pageCompte() {
       </form></section>`;
   }
   const langues = `<section class="carte"><h2>${te("langue.titre")}</h2><div class="puces">${LANGUES.map((l) => `<button type="button" class="puce ${etat.langue === l ? "actif" : ""}" data-action="langue" data-v="${l}">${te("langue." + l)}</button>`).join("")}</div></section>`;
-  return corps + langues + `<button class="btn contour large" type="button" data-action="deconnexion">${te("deconnexion")}</button>`;
+  return corps + blocNotifications() + langues + `<button class="btn contour large" type="button" data-action="deconnexion">${te("deconnexion")}</button>`;
 }
 
 // Ce qu'un membre reprend de son ancienne fiche quand il la récupère.
@@ -866,6 +947,7 @@ function pagePlus() {
       ${lien("#/fondateurs", t("plus.fondateurs"), t("plus.fondateursSous"))}
       ${lien("#/contact", t("plus.contact"), t("plus.contactSous"))}
     </div>
+    ${blocNotifications()}
     <div class="surtitre">${te("acc.suivre")}</div>
     ${blocReseaux()}
     <div class="surtitre">${te("langue.titre")}</div>
@@ -1049,7 +1131,7 @@ function fichesDepuisCSV(texte) {
 
 function adminCodes() {
   const base = adminCodesBase();
-  return etat.codes === null || etat.fiches === null || !estSuper() ? base : base + adminFondateurs();
+  return etat.codes === null || etat.fiches === null || !estSuper() ? base : base + adminNotifications() + adminFondateurs();
 }
 function adminCodesBase() {
   if (!estSuper()) return "";
@@ -1233,6 +1315,17 @@ racine.addEventListener("submit", async (ev) => {
     } catch (err) { message(texteErreur(err)); occupe(form, false); }
   }
 
+  if (form.id === "form-notif") {
+    if (v.vapidKey.length < 60) return message(t("val.cleNotif"));
+    occupe(form, true);
+    try {
+      await setDoc(doc(db, "public", "config"), { vapidKey: v.vapidKey });
+      etat.configPublique = { vapidKey: v.vapidKey };
+      etat.info = { type: "ok", texte: t("notif.cleOk") };
+      afficher();
+    } catch (e) { message(texteErreur(e)); occupe(form, false); }
+  }
+
   if (form.id === "form-contact") {
     if (v.site) return; // champ piège rempli par un robot
     if (!v.clubId || !v.nom || !v.message || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email || "")) return message(t("val.contact"));
@@ -1305,7 +1398,7 @@ racine.addEventListener("click", async (ev) => {
   const el = ev.target.closest("[data-action]");
   if (!el) return;
   const { action, v } = el.dataset;
-  etat.info = null; // le message de confirmation précédent disparaît à l'action suivante
+  etat.info = null; etat.infoNotif = null; // le message de confirmation précédent disparaît à l'action suivante
 
   if (action === "statut") { etat.filtreStatut = v; afficher(false); }
   if (action === "club") { etat.filtreClub = v; afficher(false); }
@@ -1328,6 +1421,17 @@ racine.addEventListener("click", async (ev) => {
   }
 
   if (action === "mode-journal") { etat.modeJournal = v; afficher(false); }
+  if (action === "notif-activer" || action === "notif-desactiver") {
+    el.disabled = true;
+    try {
+      if (action === "notif-activer") { await activerNotifications(); etat.infoNotif = { type: "ok", texte: t("notif.ok") }; }
+      else { await desactiverNotifications(); etat.infoNotif = { type: "ok", texte: t("notif.off") }; }
+    } catch (e) {
+      const cle = "err." + ((e && e.code) || "");
+      etat.infoNotif = { type: "erreur", texte: T.fr[cle] && /^err\.notif\//.test(cle) ? t(cle) : t("err.notif/erreur") };
+    }
+    afficher(false, true);
+  }
   if (action === "contact-autre") { etat.contactEnvoye = ""; afficher(); }
   if (action === "fond-ajout" || action === "fond-suppr") {
     const d = lireFormFondateurs(document.getElementById("form-fondateurs"));

@@ -485,4 +485,45 @@ Object.assign(nl, {
   "fond.ajouter": "Oprichter toevoegen", "fond.retirer": "Deze oprichter verwijderen", "fond.ok": "De pagina van de oprichters is opgeslagen."
 });
 
+// ---- Ajouts de la version 7 : notifications ----
+Object.assign(fr, {
+  "notif.titre": "Notifications", "notif.texte": "Recevez une alerte sur cet appareil pour les nouveaux événements, les news et les journaux.",
+  "notif.actives": "Les notifications sont activées sur cet appareil.", "notif.clubs": "Clubs à suivre",
+  "notif.activer": "Activer les notifications", "notif.maj": "Mettre à jour mes choix", "notif.desactiver": "Désactiver",
+  "notif.ok": "C'est noté : vous recevrez les notifications sur cet appareil.", "notif.off": "Les notifications sont désactivées sur cet appareil.",
+  "notif.adminTitre": "Notifications", "notif.adminAide": "Collez ici la clé « Certificats Web push » de Firebase (Paramètres du projet, onglet Cloud Messaging). Sans elle, personne ne peut activer les notifications.",
+  "notif.cle": "Clé Web push", "notif.cleOk": "La clé des notifications est enregistrée.", "val.cleNotif": "Cette clé est trop courte : copiez la clé entière depuis Firebase.",
+  "err.notif/ios": "Sur iPhone, installez d'abord l'application sur l'écran d'accueil, puis ouvrez-la depuis son icône pour activer les notifications.",
+  "err.notif/non-supporte": "Ce navigateur ne permet pas de recevoir des notifications.",
+  "err.notif/pas-pret": "Les notifications ne sont pas encore configurées par le club.",
+  "err.notif/refuse": "Les notifications sont bloquées pour cette application. Autorisez-les dans les réglages de votre téléphone ou de votre navigateur, puis réessayez.",
+  "err.notif/erreur": "Les notifications n'ont pas pu être activées. Réessayez dans un instant."
+});
+Object.assign(en, {
+  "notif.titre": "Notifications", "notif.texte": "Get an alert on this device for new events, news and journals.",
+  "notif.actives": "Notifications are turned on for this device.", "notif.clubs": "Clubs to follow",
+  "notif.activer": "Turn on notifications", "notif.maj": "Update my choices", "notif.desactiver": "Turn off",
+  "notif.ok": "Done: you will receive notifications on this device.", "notif.off": "Notifications are turned off for this device.",
+  "notif.adminTitre": "Notifications", "notif.adminAide": "Paste here the “Web Push certificates” key from Firebase (Project settings, Cloud Messaging tab). Without it, nobody can turn on notifications.",
+  "notif.cle": "Web push key", "notif.cleOk": "The notifications key is saved.", "val.cleNotif": "This key is too short: copy the whole key from Firebase.",
+  "err.notif/ios": "On iPhone, first install the app on your home screen, then open it from its icon to turn on notifications.",
+  "err.notif/non-supporte": "This browser cannot receive notifications.",
+  "err.notif/pas-pret": "Notifications have not been set up by the club yet.",
+  "err.notif/refuse": "Notifications are blocked for this app. Allow them in your phone or browser settings, then try again.",
+  "err.notif/erreur": "Notifications could not be turned on. Try again in a moment."
+});
+Object.assign(nl, {
+  "notif.titre": "Meldingen", "notif.texte": "Ontvang op dit toestel een melding bij nieuwe events, nieuws en journals.",
+  "notif.actives": "Meldingen staan aan op dit toestel.", "notif.clubs": "Clubs om te volgen",
+  "notif.activer": "Meldingen aanzetten", "notif.maj": "Mijn keuzes bijwerken", "notif.desactiver": "Uitzetten",
+  "notif.ok": "In orde: je ontvangt meldingen op dit toestel.", "notif.off": "Meldingen staan uit op dit toestel.",
+  "notif.adminTitre": "Meldingen", "notif.adminAide": "Plak hier de sleutel ‘Web Push-certificaten’ uit Firebase (Projectinstellingen, tabblad Cloud Messaging). Zonder die sleutel kan niemand meldingen aanzetten.",
+  "notif.cle": "Web push-sleutel", "notif.cleOk": "De sleutel voor meldingen is opgeslagen.", "val.cleNotif": "Deze sleutel is te kort: kopieer de volledige sleutel uit Firebase.",
+  "err.notif/ios": "Installeer op iPhone eerst de app op je beginscherm en open hem via het icoon om meldingen aan te zetten.",
+  "err.notif/non-supporte": "Deze browser kan geen meldingen ontvangen.",
+  "err.notif/pas-pret": "De club heeft de meldingen nog niet ingesteld.",
+  "err.notif/refuse": "Meldingen zijn geblokkeerd voor deze app. Sta ze toe in de instellingen van je telefoon of browser en probeer opnieuw.",
+  "err.notif/erreur": "De meldingen konden niet worden aangezet. Probeer het zo meteen opnieuw."
+});
+
 export const T = { fr, en, nl };
