@@ -19,7 +19,7 @@ const CLUBS = [
 ];
 const RESEAU = { id: "reseau", nom: "Madiba", classe: "c-reseau" };
 // Les pôles (équipes). Pour en ajouter un : un nom de plus ici.
-const POLES = ["Board", "Public Relations", "Network & Communication", "Events"];
+const POLES = ["Board", "Team Event", "Team Communication", "Team Network", "Team Relations publiques", "Team RH", "Next Africa Connect", "Madiba Business Lab"];
 const LANGUES = ["fr", "en", "nl"];
 const LOCALES = { fr: "fr-BE", en: "en-GB", nl: "nl-BE" };
 const PARTENAIRES = ["BE Solvay", "Bloomfield Investment", "BNP Paribas Fortis", "Brussels Africa Hub", "Enabel", "Incofin", "Thione Niang"];
@@ -38,7 +38,7 @@ const aujourdhui = new Date();
 const etat = {
   langue: langueInitiale(),
   pret: false, user: null, profil: null, erreurProfil: "", inscription: null, installer: null,
-  events: null, news: null, erreurContenus: "", membres: null, codes: null,
+  events: null, news: null, erreurContenus: "", membres: null, fiches: null, codes: null, importApercu: null,
   filtreStatut: "avenir", filtreClub: "tous",
   mois: { a: aujourdhui.getFullYear(), m: aujourdhui.getMonth() },
   adminOnglet: "publier", typePublication: "event", info: null,
@@ -165,7 +165,7 @@ async function chargerProfil(user) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.codes = null; etat.brouillon = null;
+  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null;
   if (user) {
     try { etat.profil = await chargerProfil(user); }
     catch (e) { etat.erreurProfil = texteErreur(e); }
@@ -213,9 +213,10 @@ async function chargerContenus() {
 }
 async function chargerMembres() {
   try {
-    const snap = await getDocs(collection(db, "users"));
-    etat.membres = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-  } catch (e) { etat.membres = []; etat.info = { type: "erreur", texte: texteErreur(e) }; }
+    const [u, f] = await Promise.all([getDocs(collection(db, "users")), getDocs(collection(db, "fiches"))]);
+    etat.membres = u.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    etat.fiches = f.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (e) { etat.membres = etat.membres || []; etat.fiches = etat.fiches || []; etat.info = { type: "erreur", texte: texteErreur(e) }; }
   afficher(false);
 }
 async function chargerCodes() {
@@ -469,15 +470,38 @@ function pageProfilInitial() {
 }
 
 /* ---------- Mon compte et parcours ---------- */
+const CHAMPS_TEXTE = ["prenom", "nom", "anneeEntree", "pole", "poste", "etudes", "linkedin", "telephone", "naissance", "photo", "aspirations", "stage", "commentaire", "entreprise"];
 function lireFormCompte(form) {
   const v = Object.fromEntries(new FormData(form).entries());
   const texte = (k) => String(v[k] || "").trim();
   const parcours = [];
   for (let i = 0; ("p_annee_" + i) in v; i++) parcours.push({ annee: texte("p_annee_" + i), pole: texte("p_pole_" + i), poste: texte("p_poste_" + i) });
-  return {
-    prenom: texte("prenom"), nom: texte("nom"), anneeEntree: texte("anneeEntree"), pole: texte("pole"), poste: texte("poste"),
-    etudes: texte("etudes"), linkedin: texte("linkedin"), parcours, visibleAnnuaire: v.visibleAnnuaire === "on"
-  };
+  const d = { parcours, visibleAnnuaire: v.visibleAnnuaire === "on", disponible: v.disponible === "on" };
+  CHAMPS_TEXTE.forEach((k) => { d[k] = texte(k); });
+  return d;
+}
+
+// Une photo n'est acceptée que sous forme d'image intégrée (jamais une adresse externe).
+const photoSure = (p) => (typeof p === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p) ? p : "");
+const initiales = (u) => (String(u.prenom || "").charAt(0) + String(u.nom || "").charAt(0)).toUpperCase();
+const avatar = (u) => (photoSure(u.photo) ? `<img class="avatar" src="${u.photo}" alt="">` : `<span class="avatar" aria-hidden="true">${esc(initiales(u))}</span>`);
+const monEmail = () => String((etat.user && etat.user.email) || "").toLowerCase();
+const maFiche = () => (etat.fiches || []).find((f) => f.email && f.email === monEmail());
+function reduirePhoto(file) {
+  return new Promise((ok, ko) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const cote = 240, c = document.createElement("canvas");
+      const r = Math.max(cote / img.width, cote / img.height), w = img.width * r, h = img.height * r;
+      c.width = cote; c.height = cote;
+      c.getContext("2d").drawImage(img, (cote - w) / 2, (cote - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("image")); };
+    img.src = url;
+  });
 }
 
 function pageCompte() {
@@ -487,8 +511,7 @@ function pageCompte() {
   const b = etat.brouillon || { ...p, parcours: Array.isArray(p.parcours) ? p.parcours : [] };
   let corps = `<h1>${te("compte.titre")}</h1>${blocInfo()}
     <section class="carte">
-      <p><strong>${esc(p.prenom)} ${esc(p.nom)}</strong></p>
-      <p class="gris">${esc(etat.user.email || "")}</p>
+      <div class="identite">${avatar(p)}<div><p><strong>${esc(p.prenom)} ${esc(p.nom)}</strong></p><p class="gris petit">${esc(etat.user.email || "")}</p></div></div>
       <p>${pastilleClub(p.clubId)} ${pastilles(p)} <span class="pastille ${p.role === "pending" ? "contour" : ""}">${te("role." + p.role)}</span></p>
     </section>`;
 
@@ -502,6 +525,11 @@ function pageCompte() {
         <button class="btn plein large" type="submit">${te("code.valider")}</button>
       </form></section>`;
   } else {
+    if (etat.fiches === null) chargerMembres();
+    if (maFiche() && !p.ficheRecuperee) {
+      corps += `<section class="carte info"><h2>${te("fiche.retrouveTitre")}</h2><p>${te("fiche.retrouveTexte")}</p>
+        <button class="btn plein" type="button" data-action="recuperer">${te("fiche.recuperer")}</button></section>`;
+    }
     const lignes = b.parcours.map((x, i) => `<div class="parcours-ligne">
         <div class="deux">
           <div class="champ"><label for="p_annee_${i}">${te("parcours.annee")}</label><input id="p_annee_${i}" name="p_annee_${i}" placeholder="2025-2026" value="${esc(x.annee)}"></div>
@@ -510,11 +538,21 @@ function pageCompte() {
         <div class="champ"><label for="p_poste_${i}">${te("parcours.poste")}</label><input id="p_poste_${i}" name="p_poste_${i}" value="${esc(x.poste)}"></div>
         <button class="lien-btn danger" type="button" data-action="parcours-suppr" data-v="${i}">${te("parcours.retirer")}</button>
       </div>`).join("");
+    const zone = (id, cle, lignesTexte) => `<div class="champ"><label for="${id}">${te(cle)}</label><textarea id="${id}" name="${id}" rows="${lignesTexte}" maxlength="1500">${esc(b[id])}</textarea></div>`;
     corps += `<section class="carte">
       <h2>${te("parcours.titre")}</h2><p class="gris petit">${te("parcours.intro")}</p>
       <div id="msg" aria-live="polite"></div>
       <form id="form-compte" novalidate>
+        <div class="identite">${avatar(b)}
+          <div class="champ"><label for="fichierPhoto">${te("parcours.photo")}</label><input id="fichierPhoto" type="file" accept="image/*" data-change="photo">
+          ${photoSure(b.photo) ? `<button class="lien-btn danger" type="button" data-action="photo-retirer">${te("parcours.photoRetirer")}</button>` : ""}</div>
+        </div>
+        <input type="hidden" name="photo" value="${photoSure(b.photo)}">
         ${champsNom(b)}
+        <div class="deux">
+          <div class="champ"><label for="telephone">${te("parcours.telephone")}</label><input id="telephone" name="telephone" type="tel" autocomplete="tel" maxlength="25" value="${esc(b.telephone)}"></div>
+          <div class="champ"><label for="naissance">${te("parcours.naissance")}</label><input id="naissance" name="naissance" type="date" value="${esc(b.naissance)}"></div>
+        </div>
         <div class="deux">
           <div class="champ"><label for="anneeEntree">${te("parcours.entree")}</label><input id="anneeEntree" name="anneeEntree" inputmode="numeric" maxlength="4" placeholder="2024" value="${esc(b.anneeEntree)}"></div>
           <div class="champ"><label for="pole">${te("parcours.poleActuel")}</label><select id="pole" name="pole">${optionsPoles(b.pole)}</select></div>
@@ -523,8 +561,13 @@ function pageCompte() {
         <h3>${te("parcours.anciens")}</h3>
         ${lignes || `<p class="gris petit">${te("parcours.vide")}</p>`}
         <button class="btn contour" type="button" data-action="parcours-ajout">${te("parcours.ajouter")}</button>
-        <div class="champ"><label for="etudes">${te("parcours.etudes")}</label><input id="etudes" name="etudes" maxlength="120" value="${esc(b.etudes)}"></div>
+        <div class="champ"><label for="etudes">${te("parcours.etudes")}</label><input id="etudes" name="etudes" maxlength="160" value="${esc(b.etudes)}"></div>
         <div class="champ"><label for="linkedin">${te("parcours.linkedin")}</label><input id="linkedin" name="linkedin" inputmode="url" placeholder="https://www.linkedin.com/in/…" value="${esc(b.linkedin)}"></div>
+        <div class="champ"><label for="entreprise">${te("parcours.entreprise")}</label><input id="entreprise" name="entreprise" maxlength="300" value="${esc(b.entreprise)}"></div>
+        ${zone("aspirations", "parcours.aspirations", 2)}
+        ${zone("stage", "parcours.stage", 2)}
+        ${zone("commentaire", "parcours.commentaire", 2)}
+        <label class="case-coche"><input type="checkbox" name="disponible"${b.disponible ? " checked" : ""}> <span>${te("parcours.disponible")}</span></label>
         <label class="case-coche"><input type="checkbox" name="visibleAnnuaire"${b.visibleAnnuaire ? " checked" : ""}> <span>${te("parcours.consentement")}</span></label>
         <button class="btn plein large" type="submit">${te("enregistrer")}</button>
       </form></section>`;
@@ -533,8 +576,25 @@ function pageCompte() {
   return corps + langues + `<button class="btn contour large" type="button" data-action="deconnexion">${te("deconnexion")}</button>`;
 }
 
+// Ce qu'un membre reprend de son ancienne fiche quand il la récupère.
+function depuisFiche(f) {
+  const d = { ficheRecuperee: true, visibleAnnuaire: true, disponible: !!f.disponible, parcours: Array.isArray(f.parcours) ? f.parcours : [] };
+  CHAMPS_TEXTE.forEach((k) => { d[k] = String(f[k] || etat.profil[k] || ""); });
+  return d;
+}
+
 /* ---------- Annuaire (membres uniquement) ---------- */
 const lienSur = (url) => (/^https?:\/\//i.test(url || "") ? url : "");
+// L'annuaire réunit les comptes des membres et les fiches reprises de l'ancien annuaire.
+// Une ancienne fiche disparaît dès que son propriétaire l'a récupérée dans son compte.
+function personnes() {
+  const comptes = (etat.membres || []).filter((u) => ROLES_MEMBRES.includes(u.role));
+  const pris = new Set(comptes.filter((u) => u.visibleAnnuaire || u.ficheRecuperee).map((u) => String(u.email || "").toLowerCase()));
+  const visibles = comptes.filter((u) => u.visibleAnnuaire).map((u) => ({ ...u, cle: "u" + u.uid }));
+  const anciennes = (etat.fiches || []).filter((f) => !f.email || !pris.has(f.email)).map((f) => ({ ...f, role: "member", cle: "f" + f.id }));
+  return visibles.concat(anciennes);
+}
+const jourAnniv = (n) => fmt({ day: "numeric", month: "long" }, new Date(2000, +n.slice(5, 7) - 1, +n.slice(8, 10)));
 function pageAnnuaire() {
   if (!estMembre()) {
     return `<h1>${te("annuaire.titre")}</h1><section class="carte"><p>${te("annuaire.reserve")}</p>
@@ -542,38 +602,54 @@ function pageAnnuaire() {
   }
   if (etat.membres === null) { chargerMembres(); return `<h1>${te("annuaire.titre")}</h1>` + chargement(); }
   const rech = etat.rechAnnuaire.trim().toLowerCase();
-  const filtres = ["tous"].concat(CLUBS.map((c) => c.id), ["board", "alumni"]);
-  const liste = etat.membres
-    .filter((u) => ROLES_MEMBRES.includes(u.role) && u.visibleAnnuaire)
+  const f = etat.filtreAnnuaire;
+  const filtres = ["tous"].concat(CLUBS.map((c) => c.id), ["board", "alumni", "anniv"]);
+  const dateOk = (u) => /^\d{4}-\d{2}-\d{2}$/.test(u.naissance || "");
+  let liste = personnes()
     .filter((u) => {
-      const f = etat.filtreAnnuaire;
       if (f === "board") return !!u.board;
       if (f === "alumni") return u.statut === "alumni";
+      if (f === "anniv") return dateOk(u);
       return f === "tous" || u.clubId === f;
     })
-    .filter((u) => !rech || [u.prenom, u.nom, u.pole, u.poste, u.etudes].join(" ").toLowerCase().includes(rech))
-    .sort((x, y) => String(x.nom).localeCompare(String(y.nom)));
+    .filter((u) => !rech || [u.prenom, u.nom, u.pole, u.poste, u.etudes, u.entreprise].join(" ").toLowerCase().includes(rech));
+  if (f === "anniv") {
+    // Du prochain anniversaire au plus lointain.
+    const ceJour = jourISO(new Date()).slice(5);
+    const rang = (u) => (u.naissance.slice(5) < ceJour ? "1" : "0") + u.naissance.slice(5);
+    liste.sort((x, y) => rang(x).localeCompare(rang(y)));
+  } else liste.sort((x, y) => String(x.nom).localeCompare(String(y.nom)));
+  const bloc = (cle, valeur) => (valeur ? `<p class="petit"><strong>${te(cle)}</strong> ${esc(valeur)}</p>` : "");
   const fiche = (u) => {
     const parcours = (Array.isArray(u.parcours) ? u.parcours : []).filter((x) => x.annee || x.poste || x.pole);
     const li = lienSur(u.linkedin);
     return `<article class="carte">
-      <p><strong>${esc(u.prenom)} ${esc(u.nom)}</strong></p>
-      <p>${pastilleClub(u.clubId)} ${pastilles(u)}</p>
-      ${u.poste || u.pole ? `<p class="petit gris">${esc([u.poste, u.pole].filter(Boolean).join(" · "))}</p>` : ""}
+      <div class="identite">${avatar(u)}<div>
+        <p><strong>${esc(u.prenom)} ${esc(u.nom)}</strong></p>
+        ${u.poste || u.pole ? `<p class="petit gris">${esc([u.poste, u.pole].filter(Boolean).join(" · "))}</p>` : ""}
+        ${f === "anniv" ? `<p class="petit"><strong>${esc(jourAnniv(u.naissance))}</strong></p>` : ""}
+      </div></div>
+      <p>${pastilleClub(u.clubId)} ${pastilles(u)}${u.disponible ? ` <span class="pastille or">${te("annuaire.dispo")}</span>` : ""}</p>
       <details><summary>${te("annuaire.voir")}</summary>
         ${u.anneeEntree ? `<p class="petit">${esc(t("annuaire.entree", { annee: u.anneeEntree }))}</p>` : ""}
         ${u.etudes ? `<p class="petit">${esc(u.etudes)}</p>` : ""}
         ${parcours.length ? `<ul class="parcours">${parcours.map((x) => `<li><strong>${esc(x.annee)}</strong> ${esc([x.poste, x.pole].filter(Boolean).join(" · "))}</li>`).join("")}</ul>` : ""}
+        ${bloc("annuaire.entreprise", u.entreprise)}${bloc("annuaire.aspirations", u.aspirations)}${bloc("annuaire.stage", u.stage)}
+        ${u.commentaire ? `<p class="petit description">${esc(u.commentaire)}</p>` : ""}
+        ${dateOk(u) ? `<p class="petit">${esc(t("annuaire.anniversaire", { date: jourAnniv(u.naissance) }))}</p>` : ""}
         ${u.email ? `<p class="petit"><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></p>` : ""}
+        ${u.telephone ? `<p class="petit"><a href="tel:${esc(u.telephone.replace(/[^+\d]/g, ""))}">${esc(u.telephone)}</a></p>` : ""}
         ${li ? `<p class="petit"><a href="${esc(li)}" target="_blank" rel="noopener">LinkedIn</a></p>` : ""}
       </details>
     </article>`;
   };
+  const nomFiltre = (v) => (v === "tous" ? t("tous") : v === "board" ? t("badge.board") : v === "alumni" ? t("badge.alumni") : v === "anniv" ? t("annuaire.anniv") : nomCourt(v));
+  const moi = etat.profil;
   return `<h1>${te("annuaire.titre")}</h1>
     <div class="champ"><label for="rech" class="cache">${te("annuaire.recherche")}</label><input id="rech" type="search" placeholder="${te("annuaire.recherche")}" value="${esc(etat.rechAnnuaire)}" data-input="rech-annuaire"></div>
-    <div class="puces">${filtres.map((v) => `<button type="button" class="puce ${etat.filtreAnnuaire === v ? "actif" : ""}" data-action="filtre-annuaire" data-v="${v}">${esc(v === "tous" ? t("tous") : v === "board" ? t("badge.board") : v === "alumni" ? t("badge.alumni") : nomCourt(v))}</button>`).join("")}</div>
-    <div id="liste-annuaire">${liste.length ? liste.map(fiche).join("") : `<p class="gris centre">${te("annuaire.vide")}</p>`}</div>
-    ${etat.profil.visibleAnnuaire ? "" : `<p class="petit gris centre">${te("annuaire.absent")} <a href="#/compte">${te("compte.titre")}</a></p>`}`;
+    <div class="puces">${filtres.map((v) => `<button type="button" class="puce ${f === v ? "actif" : ""}" data-action="filtre-annuaire" data-v="${v}">${esc(nomFiltre(v))}</button>`).join("")}</div>
+    <div id="liste-annuaire">${liste.length ? liste.map(fiche).join("") : `<p class="gris centre">${te(f === "anniv" ? "annuaire.aucunAnniv" : "annuaire.vide")}</p>`}</div>
+    ${moi.visibleAnnuaire || (maFiche() && !moi.ficheRecuperee) ? "" : `<p class="petit gris centre">${te("annuaire.absent")} <a href="#/compte">${te("compte.titre")}</a></p>`}`;
 }
 
 /* ---------- Plus ---------- */
@@ -682,16 +758,100 @@ function adminMembres() {
     <h2>${esc(t("admin.publicsN", { n: publics.length }))}</h2>${publics.length ? publics.map(fiche).join("") : `<p class="gris">${te("admin.aucunPublic")}</p>`}`;
 }
 
+/* ---------- Reprise de l'ancien annuaire (fichier CSV exporté de Google Sheets) ---------- */
+function lireCSV(texte) {
+  const lignes = []; let ligne = [], champ = "", guillemets = false;
+  for (let i = 0; i < texte.length; i++) {
+    const c = texte[i];
+    if (guillemets) {
+      if (c === '"') { if (texte[i + 1] === '"') { champ += '"'; i++; } else guillemets = false; }
+      else champ += c;
+    } else if (c === '"') guillemets = true;
+    else if (c === ",") { ligne.push(champ); champ = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && texte[i + 1] === "\n") i++;
+      ligne.push(champ); champ = ""; lignes.push(ligne); ligne = [];
+    } else champ += c;
+  }
+  if (champ !== "" || ligne.length) { ligne.push(champ); lignes.push(ligne); }
+  return lignes.filter((l) => l.some((x) => String(x).trim() !== ""));
+}
+function normaliserPole(s) {
+  const x = s.toLowerCase();
+  if (!x) return "";
+  if (/event/.test(x)) return "Team Event";
+  if (/comm/.test(x)) return "Team Communication";
+  if (/network/.test(x)) return "Team Network";
+  if (/relation|publi/.test(x)) return "Team Relations publiques";
+  if (/next africa|\bnac\b/.test(x)) return "Next Africa Connect";
+  if (/business lab|\bmbl\b/.test(x)) return "Madiba Business Lab";
+  if (/\brh\b|ressource|humain/.test(x)) return "Team RH";
+  if (/board|bureau/.test(x)) return "Board";
+  return s;
+}
+function lireHistorique(s) {
+  if (!s) return [];
+  return s.split(/\n|\s\/\s|\s_\s/).map((x) => x.trim()).filter(Boolean).map((m) => {
+    const r = m.match(/^((?:19|20)\d\d(?:\s*[-–]\s*(?:(?:19|20)\d\d|\d\d))?)\s*[:·\-–]?\s*(.*)$/);
+    return r ? { annee: r[1].replace(/\s+/g, ""), pole: "", poste: r[2].trim() } : { annee: "", pole: "", poste: m };
+  }).slice(0, 15);
+}
+const POSTES_BOARD = { pres: "Président·e", vpe: "VP Externe", vpi: "VP Interne", vpo: "VP Opérationnel", tres: "Trésorier·e", rh: "Directeur·rice RH" };
+function ficheDepuisLigne(o, i) {
+  const g = (k) => String(o[k] ?? "").trim();
+  const bd = g("bd").toLowerCase();
+  const li = g("li");
+  const id = /^[A-Za-z0-9-]{6,80}$/.test(g("id")) ? g("id") : "import-" + (i + 1);
+  return {
+    id,
+    prenom: g("n"), nom: g("s"), email: g("em").toLowerCase(), telephone: g("tel"),
+    naissance: /^\d{4}-\d{2}-\d{2}$/.test(g("b")) ? g("b") : "",
+    linkedin: li && !/^https?:\/\//i.test(li) ? "https://" + li : li,
+    photo: photoSure(g("ph")),
+    etudes: [g("sch"), g("fi"), g("dg")].filter(Boolean).join(" · "),
+    pole: normaliserPole(g("pole")) || (bd ? "Board" : ""),
+    poste: g("role") || POSTES_BOARD[bd] || "",
+    anneeEntree: /^(19|20)\d\d$/.test(g("y")) ? g("y") : "",
+    clubId: /royaume|manchester|angleterre|united|\buk\b/i.test(g("ct")) ? "manchester" : "bruxelles",
+    statut: g("st").toLowerCase() === "l" ? "alumni" : "actif",
+    board: !!bd,
+    aspirations: g("asp"), stage: g("int"), commentaire: g("cm"),
+    parcours: lireHistorique(g("hist")),
+    entreprise: [g("cur"), g("desc")].filter(Boolean).join(" — "),
+    disponible: g("av").toLowerCase() === "true",
+    importeLe: new Date().toISOString()
+  };
+}
+function fichesDepuisCSV(texte) {
+  const lignes = lireCSV(texte.replace(/^﻿/, ""));
+  if (lignes.length < 2) return null;
+  const entetes = lignes[0].map((x) => String(x).trim().toLowerCase());
+  if (!entetes.includes("em") || !entetes.includes("n") || !entetes.includes("s")) return null;
+  return lignes.slice(1).map((l, i) => {
+    const o = {}; entetes.forEach((e, j) => { o[e] = l[j]; });
+    return ficheDepuisLigne(o, i);
+  }).filter((f) => f.prenom || f.nom);
+}
+
 function adminCodes() {
   if (!estSuper()) return "";
   if (etat.codes === null) { chargerCodes(); return chargement(); }
+  if (etat.fiches === null) { chargerMembres(); return chargement(); }
+  const a = etat.importApercu;
   return `<section class="carte">
     <h2>${te("admin.codesTitre")}</h2><p class="gris petit">${te("admin.codesAide")}</p>
     <div id="msg" aria-live="polite"></div>
     <form id="form-codes" novalidate>
       ${CLUBS.map((c) => `<div class="champ"><label for="code_${c.id}">${esc(c.nom)}</label><input id="code_${c.id}" name="${c.id}" autocomplete="off" minlength="4" value="${esc(etat.codes[c.id])}"></div>`).join("")}
       <button class="btn plein large" type="submit">${te("enregistrer")}</button>
-    </form></section>`;
+    </form></section>
+    <section class="carte">
+      <h2>${te("imp.titre")}</h2><p class="gris petit">${te("imp.aide")}</p>
+      <p class="petit">${esc(t("imp.deja", { n: etat.fiches.length }))}</p>
+      <div class="champ"><label for="csv">${te("imp.choisir")}</label><input id="csv" type="file" accept=".csv,text/csv" data-change="csv"></div>
+      ${a ? `<p>${esc(t("imp.trouve", { n: a.length, mails: a.filter((x) => x.email).length, photos: a.filter((x) => x.photo).length }))}</p>
+        <button class="btn plein large" type="button" data-action="importer">${esc(t("imp.bouton", { n: a.length }))}</button>` : ""}
+    </section>`;
 }
 
 function pageAdmin() {
@@ -806,6 +966,8 @@ racine.addEventListener("submit", async (ev) => {
     if (!d.prenom || !d.nom) return message(t("val.nom"));
     if (d.anneeEntree && !/^(19|20)\d\d$/.test(d.anneeEntree)) return message(t("val.annee"));
     if (d.linkedin && !/^https?:\/\//i.test(d.linkedin)) d.linkedin = "https://" + d.linkedin;
+    if (d.naissance && !/^(19|20)\d\d-\d\d-\d\d$/.test(d.naissance)) return message(t("val.naissance"));
+    d.photo = photoSure(d.photo);
     d.parcours = d.parcours.filter((x) => x.annee || x.pole || x.poste).slice(0, 15);
     occupe(form, true);
     try {
@@ -892,6 +1054,41 @@ racine.addEventListener("click", async (ev) => {
     afficher(false);
   }
 
+  if (action === "photo-retirer") {
+    etat.brouillon = { ...lireFormCompte(document.getElementById("form-compte")), photo: "" };
+    afficher(false);
+  }
+
+  if (action === "recuperer") {
+    const f = maFiche();
+    if (!f) return;
+    el.disabled = true;
+    try {
+      const maj = depuisFiche(f);
+      await updateDoc(doc(db, "users", etat.user.uid), maj);
+      etat.profil = { ...etat.profil, ...maj }; etat.brouillon = null; etat.membres = null;
+      etat.info = { type: "ok", texte: t("fiche.recupOk") };
+    } catch (e) { etat.info = { type: "erreur", texte: texteErreur(e) }; }
+    afficher();
+  }
+
+  if (action === "importer" && etat.importApercu) {
+    const liste = etat.importApercu;
+    el.disabled = true;
+    let faits = 0;
+    try {
+      for (const f of liste) {
+        const { id, ...donnees } = f;
+        await setDoc(doc(db, "fiches", id), donnees);
+        faits++;
+        el.textContent = t("imp.encours", { i: faits, n: liste.length });
+      }
+      etat.info = { type: "ok", texte: t("imp.ok", { n: faits }) };
+    } catch (e) { etat.info = { type: "erreur", texte: t("imp.partiel", { i: faits, n: liste.length }) + " " + texteErreur(e) }; }
+    etat.importApercu = null; etat.membres = null; etat.fiches = null;
+    afficher();
+  }
+
   if (action === "suppr") {
     if (!window.confirm(t("admin.confirmer"))) return;
     el.disabled = true;
@@ -931,9 +1128,21 @@ racine.addEventListener("click", async (ev) => {
   if (action === "installer" && etat.installer) { etat.installer.prompt(); etat.installer = null; afficher(); }
 });
 
-racine.addEventListener("change", (ev) => {
+racine.addEventListener("change", async (ev) => {
   const c = ev.target.dataset && ev.target.dataset.change;
   if (c === "langue") changerLangue(ev.target.value);
+  if (c === "photo" && ev.target.files[0]) {
+    const brouillon = lireFormCompte(ev.target.form);
+    try { brouillon.photo = await reduirePhoto(ev.target.files[0]); etat.brouillon = brouillon; afficher(false, true); }
+    catch (e) { message(t("val.photo")); }
+  }
+  if (c === "csv" && ev.target.files[0]) {
+    etat.info = null;
+    const liste = fichesDepuisCSV(await ev.target.files[0].text());
+    if (!liste || !liste.length) { etat.importApercu = null; etat.info = { type: "erreur", texte: t("imp.erreurFichier") }; }
+    else etat.importApercu = liste;
+    afficher(false, true);
+  }
   if (c === "type-compte") {
     // On garde ce qui est déjà saisi quand le formulaire change de forme.
     const form = ev.target.form;

@@ -344,4 +344,60 @@ const nl = {
   "err.inconnue": "Er ging iets mis. Probeer opnieuw. ({code})"
 };
 
+// ---- Ajouts de la version 4 : ancien annuaire, photo, anniversaires ----
+Object.assign(fr, {
+  "admin.onglet.codes": "Réglages",
+  "imp.titre": "Reprendre l'ancien annuaire", "imp.aide": "Choisissez le fichier CSV exporté depuis l'onglet « Fiches » de l'ancienne feuille Google. Importer à nouveau le même fichier met les fiches à jour, sans créer de doublons.",
+  "imp.deja": "Fiches de l'ancien annuaire actuellement dans l'application : {n}.", "imp.choisir": "Fichier CSV",
+  "imp.trouve": "{n} fiches trouvées dans le fichier, dont {mails} avec une adresse e-mail et {photos} avec une photo.",
+  "imp.bouton": "Importer {n} fiches", "imp.encours": "Import en cours… {i} sur {n}", "imp.ok": "{n} fiches sont importées dans l'annuaire.",
+  "imp.partiel": "L'import s'est arrêté après {i} fiches sur {n}.",
+  "imp.erreurFichier": "Ce fichier n'est pas reconnu. Il faut le fichier CSV de l'onglet « Fiches », avec sa première ligne de titres (id, n, s, b, em…).",
+  "fiche.retrouveTitre": "Nous avons retrouvé votre fiche", "fiche.retrouveTexte": "Une fiche à votre adresse e-mail existe dans l'ancien annuaire. Récupérez-la pour pré-remplir votre profil, puis corrigez ce qui a changé.",
+  "fiche.recuperer": "Récupérer ma fiche", "fiche.recupOk": "Votre ancienne fiche est reprise dans votre profil. Vérifiez-la puis enregistrez.",
+  "parcours.photo": "Photo de profil", "parcours.photoRetirer": "Retirer la photo", "parcours.telephone": "Téléphone", "parcours.naissance": "Date de naissance",
+  "parcours.entreprise": "Entreprise et poste actuels (alumni)", "parcours.aspirations": "Aspirations professionnelles", "parcours.stage": "Stage ou emploi recherché",
+  "parcours.commentaire": "Un mot pour les autres membres", "parcours.disponible": "Je suis disponible pour échanger avec les autres membres.",
+  "parcours.consentement": "J'accepte que ma fiche (nom, photo, parcours, e-mail, téléphone, LinkedIn, jour d'anniversaire) soit visible par les membres dans l'annuaire.",
+  "annuaire.anniv": "Anniversaires", "annuaire.anniversaire": "Anniversaire : {date}", "annuaire.aucunAnniv": "Aucune date de naissance renseignée.",
+  "annuaire.dispo": "Disponible pour échanger", "annuaire.entreprise": "Aujourd'hui :", "annuaire.aspirations": "Aspirations :", "annuaire.stage": "Recherche :",
+  "val.photo": "Cette image n'a pas pu être lue. Essayez avec une autre photo.", "val.naissance": "La date de naissance n'est pas valide."
+});
+Object.assign(en, {
+  "admin.onglet.codes": "Settings",
+  "imp.titre": "Bring in the old directory", "imp.aide": "Choose the CSV file exported from the “Fiches” tab of the old Google sheet. Importing the same file again updates the profiles without creating duplicates.",
+  "imp.deja": "Profiles from the old directory currently in the app: {n}.", "imp.choisir": "CSV file",
+  "imp.trouve": "{n} profiles found in the file, {mails} with an email address and {photos} with a photo.",
+  "imp.bouton": "Import {n} profiles", "imp.encours": "Importing… {i} of {n}", "imp.ok": "{n} profiles are imported into the directory.",
+  "imp.partiel": "The import stopped after {i} of {n} profiles.",
+  "imp.erreurFichier": "This file is not recognised. It must be the CSV file of the “Fiches” tab, with its first row of titles (id, n, s, b, em…).",
+  "fiche.retrouveTitre": "We found your profile", "fiche.retrouveTexte": "A profile with your email address exists in the old directory. Retrieve it to pre-fill your profile, then correct what has changed.",
+  "fiche.recuperer": "Retrieve my profile", "fiche.recupOk": "Your old profile has been copied into your account. Check it, then save.",
+  "parcours.photo": "Profile photo", "parcours.photoRetirer": "Remove the photo", "parcours.telephone": "Phone", "parcours.naissance": "Date of birth",
+  "parcours.entreprise": "Current company and position (alumni)", "parcours.aspirations": "Career aspirations", "parcours.stage": "Internship or job sought",
+  "parcours.commentaire": "A word for the other members", "parcours.disponible": "I am available to talk with other members.",
+  "parcours.consentement": "I agree that my profile (name, photo, journey, email, phone, LinkedIn, birthday) is visible to members in the directory.",
+  "annuaire.anniv": "Birthdays", "annuaire.anniversaire": "Birthday: {date}", "annuaire.aucunAnniv": "No date of birth has been entered.",
+  "annuaire.dispo": "Available to talk", "annuaire.entreprise": "Today:", "annuaire.aspirations": "Aspirations:", "annuaire.stage": "Looking for:",
+  "val.photo": "This image could not be read. Try another photo.", "val.naissance": "The date of birth is not valid."
+});
+Object.assign(nl, {
+  "admin.onglet.codes": "Instellingen",
+  "imp.titre": "De oude ledenlijst overnemen", "imp.aide": "Kies het CSV-bestand dat je uit het tabblad ‘Fiches’ van het oude Google-blad hebt geëxporteerd. Hetzelfde bestand opnieuw importeren werkt de fiches bij, zonder dubbels.",
+  "imp.deja": "Fiches uit de oude ledenlijst die nu in de app staan: {n}.", "imp.choisir": "CSV-bestand",
+  "imp.trouve": "{n} fiches gevonden in het bestand, waarvan {mails} met een e-mailadres en {photos} met een foto.",
+  "imp.bouton": "{n} fiches importeren", "imp.encours": "Bezig met importeren… {i} van {n}", "imp.ok": "{n} fiches zijn geïmporteerd in de ledenlijst.",
+  "imp.partiel": "De import stopte na {i} van {n} fiches.",
+  "imp.erreurFichier": "Dit bestand wordt niet herkend. Het moet het CSV-bestand van het tabblad ‘Fiches’ zijn, met de eerste rij titels (id, n, s, b, em…).",
+  "fiche.retrouveTitre": "We hebben je fiche teruggevonden", "fiche.retrouveTexte": "In de oude ledenlijst staat een fiche met jouw e-mailadres. Neem ze over om je profiel in te vullen en pas aan wat veranderd is.",
+  "fiche.recuperer": "Mijn fiche overnemen", "fiche.recupOk": "Je oude fiche is overgenomen in je profiel. Controleer ze en sla op.",
+  "parcours.photo": "Profielfoto", "parcours.photoRetirer": "Foto verwijderen", "parcours.telephone": "Telefoon", "parcours.naissance": "Geboortedatum",
+  "parcours.entreprise": "Huidig bedrijf en functie (alumni)", "parcours.aspirations": "Professionele ambities", "parcours.stage": "Gezochte stage of job",
+  "parcours.commentaire": "Een woord voor de andere leden", "parcours.disponible": "Ik ben beschikbaar om met andere leden te praten.",
+  "parcours.consentement": "Ik ga ermee akkoord dat mijn fiche (naam, foto, parcours, e-mail, telefoon, LinkedIn, verjaardag) zichtbaar is voor leden in de ledenlijst.",
+  "annuaire.anniv": "Verjaardagen", "annuaire.anniversaire": "Verjaardag: {date}", "annuaire.aucunAnniv": "Geen geboortedatum ingevuld.",
+  "annuaire.dispo": "Beschikbaar om te praten", "annuaire.entreprise": "Vandaag:", "annuaire.aspirations": "Ambities:", "annuaire.stage": "Zoekt:",
+  "val.photo": "Deze afbeelding kon niet worden gelezen. Probeer een andere foto.", "val.naissance": "De geboortedatum is niet geldig."
+});
+
 export const T = { fr, en, nl };

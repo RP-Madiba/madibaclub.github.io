@@ -178,3 +178,9 @@ ol.etapes { margin: 0; padding-left: 20px; display: flex; flex-direction: column
 details summary { min-height: 44px; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--lien); cursor: pointer; }
 details[open] { display: flex; flex-direction: column; gap: 6px; }
 ul.parcours { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+
+/* Version 4 : photos de profil */
+.identite { display: flex; align-items: center; gap: 12px; }
+.identite > div { flex: 1; min-width: 0; }
+.avatar { width: 56px; height: 56px; flex: none; border-radius: 50%; object-fit: cover; background: #111111; color: var(--or); display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.champ input[type="file"] { padding: 9px 10px; font-size: 14px; }
