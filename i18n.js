@@ -441,4 +441,48 @@ Object.assign(nl, {
   "acc.videoTitre": "Madiba in beeld", "acc.videoTexte": "Het board 2024-2025 stelt Madiba Club voor.", "acc.videoBouton": "Video starten", "acc.suivre": "Volg Madiba Club"
 });
 
+// ---- Ajouts de la version 6 : contact par cellule, page des fondateurs ----
+Object.assign(fr, {
+  "contact.titre": "Contact", "contact.cellule": "À quelle cellule écrivez-vous ?", "contact.be": "Belgique", "contact.uk": "Royaume-Uni",
+  "contact.nom": "Nom et prénom", "contact.objet": "Objet", "contact.message": "Message", "contact.envoyer": "Envoyer le message",
+  "contact.o1": "Devenir membre", "contact.o2": "Partenariat", "contact.o3": "Question sur un événement", "contact.o4": "Presse", "contact.o5": "Autre",
+  "contact.note": "Votre message arrive directement à l'équipe de la cellule choisie. Vos coordonnées ne servent qu'à vous répondre.",
+  "contact.okTitre": "Message envoyé", "contact.okTexte": "Il a été transmis à la cellule {cellule}. Vous recevrez une réponse par e-mail.", "contact.autre": "Écrire un autre message",
+  "val.contact": "Indiquez votre nom, une adresse e-mail valide et votre message.",
+  "admin.onglet.messages": "Messages", "admin.msgAide": "Les messages envoyés depuis la page Contact à votre cellule. Supprimez-les une fois traités.",
+  "admin.msgAucun": "Aucun message.", "admin.msgRepondre": "Répondre par e-mail", "admin.msgConfirmer": "Supprimer définitivement ce message ?", "admin.msgSupprOk": "Le message est supprimé.",
+  "fond.titre": "Les fondateurs", "fond.depuis": "Madiba Club, fondé en {annee}", "fond.histoire": "L'histoire", "fond.vide": "Cette page sera bientôt complétée.",
+  "fond.adminTitre": "Page des fondateurs", "fond.adminAide": "Cette page est publique. Racontez la naissance du club et présentez celles et ceux qui l'ont créé.",
+  "fond.annee": "Année de création", "fond.histoireLabel": "L'histoire du club", "fond.nom": "Nom complet", "fond.role": "Rôle à la création, et aujourd'hui", "fond.bio": "Présentation",
+  "fond.ajouter": "Ajouter un fondateur", "fond.retirer": "Retirer ce fondateur", "fond.ok": "La page des fondateurs est enregistrée."
+});
+Object.assign(en, {
+  "contact.titre": "Contact", "contact.cellule": "Which team are you writing to?", "contact.be": "Belgium", "contact.uk": "United Kingdom",
+  "contact.nom": "Full name", "contact.objet": "Subject", "contact.message": "Message", "contact.envoyer": "Send the message",
+  "contact.o1": "Become a member", "contact.o2": "Partnership", "contact.o3": "Question about an event", "contact.o4": "Press", "contact.o5": "Other",
+  "contact.note": "Your message goes straight to the team you chose. Your details are only used to reply to you.",
+  "contact.okTitre": "Message sent", "contact.okTexte": "It has been passed on to the {cellule} team. You will receive a reply by email.", "contact.autre": "Write another message",
+  "val.contact": "Enter your name, a valid email address and your message.",
+  "admin.onglet.messages": "Messages", "admin.msgAide": "Messages sent to your team from the Contact page. Delete them once handled.",
+  "admin.msgAucun": "No message.", "admin.msgRepondre": "Reply by email", "admin.msgConfirmer": "Delete this message permanently?", "admin.msgSupprOk": "The message is deleted.",
+  "fond.titre": "The founders", "fond.depuis": "Madiba Club, founded in {annee}", "fond.histoire": "The story", "fond.vide": "This page will be completed soon.",
+  "fond.adminTitre": "Founders page", "fond.adminAide": "This page is public. Tell how the club was born and introduce the people who created it.",
+  "fond.annee": "Year founded", "fond.histoireLabel": "The club's story", "fond.nom": "Full name", "fond.role": "Role at the start, and today", "fond.bio": "Introduction",
+  "fond.ajouter": "Add a founder", "fond.retirer": "Remove this founder", "fond.ok": "The founders page is saved."
+});
+Object.assign(nl, {
+  "contact.titre": "Contact", "contact.cellule": "Naar welk team schrijf je?", "contact.be": "België", "contact.uk": "Verenigd Koninkrijk",
+  "contact.nom": "Naam en voornaam", "contact.objet": "Onderwerp", "contact.message": "Bericht", "contact.envoyer": "Bericht versturen",
+  "contact.o1": "Lid worden", "contact.o2": "Partnerschap", "contact.o3": "Vraag over een event", "contact.o4": "Pers", "contact.o5": "Andere",
+  "contact.note": "Je bericht komt rechtstreeks bij het gekozen team terecht. Je gegevens dienen alleen om je te antwoorden.",
+  "contact.okTitre": "Bericht verstuurd", "contact.okTexte": "Het is doorgestuurd naar het team {cellule}. Je krijgt een antwoord per e-mail.", "contact.autre": "Nog een bericht schrijven",
+  "val.contact": "Vul je naam, een geldig e-mailadres en je bericht in.",
+  "admin.onglet.messages": "Berichten", "admin.msgAide": "Berichten die via de contactpagina naar jouw team zijn gestuurd. Verwijder ze zodra ze behandeld zijn.",
+  "admin.msgAucun": "Geen bericht.", "admin.msgRepondre": "Antwoorden per e-mail", "admin.msgConfirmer": "Dit bericht definitief verwijderen?", "admin.msgSupprOk": "Het bericht is verwijderd.",
+  "fond.titre": "De oprichters", "fond.depuis": "Madiba Club, opgericht in {annee}", "fond.histoire": "Het verhaal", "fond.vide": "Deze pagina wordt binnenkort aangevuld.",
+  "fond.adminTitre": "Pagina van de oprichters", "fond.adminAide": "Deze pagina is publiek. Vertel hoe de club is ontstaan en stel de mensen voor die hem hebben opgericht.",
+  "fond.annee": "Oprichtingsjaar", "fond.histoireLabel": "Het verhaal van de club", "fond.nom": "Volledige naam", "fond.role": "Rol bij de start, en vandaag", "fond.bio": "Voorstelling",
+  "fond.ajouter": "Oprichter toevoegen", "fond.retirer": "Deze oprichter verwijderen", "fond.ok": "De pagina van de oprichters is opgeslagen."
+});
+
 export const T = { fr, en, nl };

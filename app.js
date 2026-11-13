@@ -15,8 +15,8 @@ import { convertirPDF } from "./journal.js";
 
 // Les clubs du réseau. Pour en ajouter un : une ligne ici (et son nom dans i18n.js).
 const CLUBS = [
-  { id: "bruxelles", nom: "Madiba Bruxelles", classe: "c-noir" },
-  { id: "manchester", nom: "Madiba Manchester", classe: "c-or" }
+  { id: "bruxelles", nom: "Madiba Bruxelles", classe: "c-noir", pays: "be" },
+  { id: "manchester", nom: "Madiba Manchester", classe: "c-or", pays: "uk" }
 ];
 const RESEAU = { id: "reseau", nom: "Madiba", classe: "c-reseau" };
 // Les pôles (équipes). Pour en ajouter un : un nom de plus ici.
@@ -43,7 +43,7 @@ const etat = {
   filtreStatut: "avenir", filtreClub: "tous",
   mois: { a: aujourdhui.getFullYear(), m: aujourdhui.getMonth() },
   adminOnglet: "publier", typePublication: "event", info: null,
-  typeCompte: "membre", brouillon: null, rechAnnuaire: "", filtreAnnuaire: "tous"
+  messages: null, fondateurs: null, fondBrouillon: null, contactEnvoye: "", contactCellule: "", typeCompte: "membre", brouillon: null, rechAnnuaire: "", filtreAnnuaire: "tous"
 };
 const racine = document.getElementById("app");
 
@@ -168,7 +168,7 @@ async function chargerProfil(user) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null; etat.pagesJournal = {};
+  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null; etat.pagesJournal = {}; etat.messages = null;
   if (user) {
     try { etat.profil = await chargerProfil(user); }
     catch (e) { etat.erreurProfil = texteErreur(e); }
@@ -213,6 +213,7 @@ async function chargerContenus() {
     etat.erreurContenus = texteErreur(e);
   }
   try { etat.journaux = await lire("journaux"); } catch (e) { etat.journaux = etat.journaux || []; }
+  try { const f = await getDoc(doc(db, "public", "fondateurs")); etat.fondateurs = f.exists() ? f.data() : {}; } catch (e) { etat.fondateurs = etat.fondateurs || {}; }
   afficher(false);
 }
 async function chargerMembres() {
@@ -506,6 +507,110 @@ function pageBoard() {
 }
 const blocReseaux = () => `<div class="rangee">${RESEAUX.map(([nom, url]) => `<a class="btn contour petit-btn" href="${url}" target="_blank" rel="noopener">${nom}</a>`).join("")}</div>`;
 
+/* ---------- Contact : le message part vers la cellule choisie ---------- */
+const OBJETS = ["o1", "o2", "o3", "o4", "o5"];
+const nomCellule = (id) => t("contact." + ((club(id) || {}).pays || "be"));
+function pageContact() {
+  if (etat.contactEnvoye) {
+    return `<h1>${te("contact.titre")}</h1><section class="carte centre-carte">
+      <h2>${te("contact.okTitre")}</h2>
+      <p>${esc(t("contact.okTexte", { cellule: nomCellule(etat.contactEnvoye) }))}</p>
+      <button class="btn contour" type="button" data-action="contact-autre">${te("contact.autre")}</button></section>`;
+  }
+  const p = etat.profil;
+  const choisi = etat.contactCellule || (p && club(p.clubId) ? p.clubId : CLUBS[0].id);
+  return `<h1>${te("contact.titre")}</h1>
+    <section class="carte">
+      <div id="msg" aria-live="polite"></div>
+      <form id="form-contact" novalidate>
+        <fieldset class="choix"><legend>${te("contact.cellule")}</legend>
+          ${CLUBS.map((c) => `<label><input type="radio" name="clubId" value="${c.id}"${c.id === choisi ? " checked" : ""}> <span><strong>${esc(nomCellule(c.id))}</strong> · ${esc(c.nom)}</span></label>`).join("")}
+        </fieldset>
+        <div class="champ"><label for="c_nom">${te("contact.nom")}</label><input id="c_nom" name="nom" autocomplete="name" maxlength="120" value="${esc(p ? p.prenom + " " + p.nom : "")}" required></div>
+        <div class="champ"><label for="c_email">${te("email")}</label><input id="c_email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="160" value="${esc(etat.user ? etat.user.email : "")}" required></div>
+        <div class="champ"><label for="objet">${te("contact.objet")}</label><select id="objet" name="objet">${OBJETS.map((o) => `<option value="${o}">${te("contact." + o)}</option>`).join("")}</select></div>
+        <div class="champ"><label for="c_message">${te("contact.message")}</label><textarea id="c_message" name="message" rows="5" maxlength="4000" required></textarea></div>
+        <div class="cache" aria-hidden="true"><label for="site">Site</label><input id="site" name="site" tabindex="-1" autocomplete="off"></div>
+        <button class="btn plein large" type="submit">${te("contact.envoyer")}</button>
+        <p class="petit gris">${te("contact.note")}</p>
+      </form>
+    </section>`;
+}
+
+async function chargerMessages() {
+  try {
+    const ref = collection(db, "messages");
+    const snap = await getDocs(estSuper() ? ref : query(ref, where("clubId", "==", etat.profil.clubId)));
+    etat.messages = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((x, y) => String(y.creeLe || "").localeCompare(String(x.creeLe || "")));
+  } catch (e) { etat.messages = []; etat.info = { type: "erreur", texte: texteErreur(e) }; }
+  afficher(false);
+}
+function adminMessages() {
+  if (etat.messages === null) { chargerMessages(); return chargement(); }
+  const carte = (m) => `<article class="carte">
+      <p class="ligne-pastilles">${pastilleClub(m.clubId)} <span class="pastille contour">${te("contact." + (OBJETS.includes(m.objet) ? m.objet : "o5"))}</span><span class="petit gris date">${esc(texteDatePublication(m.creeLe))}</span></p>
+      <p><strong>${esc(m.nom)}</strong></p>
+      <p class="description">${esc(m.message)}</p>
+      <div class="rangee">
+        <a class="btn contour petit-btn" href="mailto:${esc(m.email)}">${te("admin.msgRepondre")}</a>
+        <button class="lien-btn danger" type="button" data-action="suppr-message" data-id="${esc(m.id)}">${te("supprimer")}</button>
+      </div>
+      <p class="petit gris">${esc(m.email)}</p>
+    </article>`;
+  return `<p class="petit gris">${te("admin.msgAide")}</p>${etat.messages.length ? etat.messages.map(carte).join("") : `<p class="gris">${te("admin.msgAucun")}</p>`}`;
+}
+
+/* ---------- Les fondateurs : page publique, remplie par le super-administrateur ---------- */
+function pageFondateurs() {
+  if (etat.fondateurs === null) return `<h1>${te("fond.titre")}</h1>` + chargement();
+  const f = etat.fondateurs;
+  const liste = Array.isArray(f.liste) ? f.liste : [];
+  const vide = !f.histoire && !liste.length;
+  return `<section class="hero-logo"><img src="icons/logo-or.png" alt="Madiba Club"><h1>${te("fond.titre")}</h1>${f.annee ? `<p>${esc(t("fond.depuis", { annee: f.annee }))}</p>` : ""}</section>
+    ${vide ? `<section class="carte"><p>${te("fond.vide")}</p></section>` : ""}
+    ${f.histoire ? `<h2>${te("fond.histoire")}</h2><p class="description">${esc(f.histoire)}</p>` : ""}
+    ${liste.map((x) => {
+      const li = lienSur(x.linkedin);
+      return `<article class="carte">
+        <div class="identite">${avatar({ photo: x.photo, prenom: x.nom, nom: String(x.nom || "").split(" ").slice(-1)[0] })}<div><p><strong>${esc(x.nom)}</strong></p>${x.role ? `<p class="petit gris">${esc(x.role)}</p>` : ""}</div></div>
+        ${x.bio ? `<p class="description">${esc(x.bio)}</p>` : ""}
+        ${li ? `<p class="petit"><a href="${esc(li)}" target="_blank" rel="noopener">LinkedIn</a></p>` : ""}
+      </article>`;
+    }).join("")}`;
+}
+function lireFormFondateurs(form) {
+  const v = Object.fromEntries(new FormData(form).entries());
+  const g = (k) => String(v[k] || "").trim();
+  const liste = [];
+  for (let i = 0; ("f_nom_" + i) in v; i++) {
+    const li = g("f_linkedin_" + i);
+    liste.push({ nom: g("f_nom_" + i), role: g("f_role_" + i), bio: g("f_bio_" + i), linkedin: li && !/^https?:\/\//i.test(li) ? "https://" + li : li, photo: photoSure(g("f_photo_" + i)) });
+  }
+  return { annee: g("f_annee"), histoire: g("f_histoire"), liste };
+}
+function adminFondateurs() {
+  const f = etat.fondBrouillon || etat.fondateurs || {};
+  const liste = Array.isArray(f.liste) ? f.liste : [];
+  return `<section class="carte">
+    <h2>${te("fond.adminTitre")}</h2><p class="gris petit">${te("fond.adminAide")}</p>
+    <form id="form-fondateurs" novalidate>
+      <div class="champ"><label for="f_annee">${te("fond.annee")}</label><input id="f_annee" name="f_annee" inputmode="numeric" maxlength="4" value="${esc(f.annee)}"></div>
+      <div class="champ"><label for="f_histoire">${te("fond.histoireLabel")}</label><textarea id="f_histoire" name="f_histoire" rows="5" maxlength="3000">${esc(f.histoire)}</textarea></div>
+      ${liste.map((x, i) => `<div class="parcours-ligne">
+        <div class="identite">${avatar({ photo: x.photo, prenom: x.nom, nom: "" })}
+          <div class="champ"><label for="f_fichier_${i}">${te("parcours.photo")}</label><input id="f_fichier_${i}" type="file" accept="image/*" data-change="photo-fondateur" data-i="${i}"></div></div>
+        <input type="hidden" name="f_photo_${i}" value="${photoSure(x.photo)}">
+        <div class="champ"><label for="f_nom_${i}">${te("fond.nom")}</label><input id="f_nom_${i}" name="f_nom_${i}" maxlength="80" value="${esc(x.nom)}"></div>
+        <div class="champ"><label for="f_role_${i}">${te("fond.role")}</label><input id="f_role_${i}" name="f_role_${i}" maxlength="120" value="${esc(x.role)}"></div>
+        <div class="champ"><label for="f_bio_${i}">${te("fond.bio")}</label><textarea id="f_bio_${i}" name="f_bio_${i}" rows="3" maxlength="1200">${esc(x.bio)}</textarea></div>
+        <div class="champ"><label for="f_linkedin_${i}">${te("parcours.linkedin")}</label><input id="f_linkedin_${i}" name="f_linkedin_${i}" inputmode="url" value="${esc(x.linkedin)}"></div>
+        <button class="lien-btn danger" type="button" data-action="fond-suppr" data-v="${i}">${te("fond.retirer")}</button>
+      </div>`).join("")}
+      <button class="btn contour" type="button" data-action="fond-ajout">${te("fond.ajouter")}</button>
+      <button class="btn plein large" type="submit">${te("enregistrer")}</button>
+    </form></section>`;
+}
+
 /* ---------- Connexion et inscription ---------- */
 const optionsClubs = (choisi, avecReseau) => `<option value="">${te("choisir")}</option>`
   + CLUBS.concat(avecReseau ? [RESEAU] : []).map((c) => `<option value="${esc(c.id)}"${c.id === choisi ? " selected" : ""}>${esc(nomClub(c.id))}</option>`).join("");
@@ -758,8 +863,8 @@ function pagePlus() {
     <div class="surtitre">${te("plus.reseau")}</div>
     <div class="liste">
       ${lien("#/board", t("board.titre"), t("plus.boardSous"))}
-      ${ligne(t("plus.fondateurs"), t("plus.fondateursSous"), t("bientot"))}
-      ${ligne(t("plus.contact"), t("plus.contactSous"), t("bientot"))}
+      ${lien("#/fondateurs", t("plus.fondateurs"), t("plus.fondateursSous"))}
+      ${lien("#/contact", t("plus.contact"), t("plus.contactSous"))}
     </div>
     <div class="surtitre">${te("acc.suivre")}</div>
     ${blocReseaux()}
@@ -943,6 +1048,10 @@ function fichesDepuisCSV(texte) {
 }
 
 function adminCodes() {
+  const base = adminCodesBase();
+  return etat.codes === null || etat.fiches === null || !estSuper() ? base : base + adminFondateurs();
+}
+function adminCodesBase() {
   if (!estSuper()) return "";
   if (etat.codes === null) { chargerCodes(); return chargement(); }
   if (etat.fiches === null) { chargerMembres(); return chargement(); }
@@ -965,12 +1074,12 @@ function adminCodes() {
 
 function pageAdmin() {
   if (!estAdmin()) return `<h1>${te("admin.titre")}</h1><section class="carte"><p>${te("admin.reserve")}</p></section>`;
-  const onglets = ["publier", "contenus", "membres"].concat(estSuper() ? ["codes"] : []);
+  const onglets = ["publier", "contenus", "membres", "messages"].concat(estSuper() ? ["codes"] : []);
   if (!onglets.includes(etat.adminOnglet)) etat.adminOnglet = "publier";
-  const corps = { publier: adminPublier, contenus: adminContenus, membres: adminMembres, codes: adminCodes }[etat.adminOnglet]();
+  const corps = { publier: adminPublier, contenus: adminContenus, membres: adminMembres, messages: adminMessages, codes: adminCodes }[etat.adminOnglet]();
   return `<h1>${te("admin.titre")}</h1>
     <p class="petit gris">${estSuper() ? te("admin.tous") : te("admin.vousGerez") + " " + esc(nomClub(etat.profil.clubId))}</p>
-    <div class="onglets">${onglets.map((v) => `<button type="button" class="${etat.adminOnglet === v ? "actif" : ""}" data-action="onglet-admin" data-v="${v}">${te("admin.onglet." + v)}</button>`).join("")}</div>
+    <div class="onglets defile">${onglets.map((v) => `<button type="button" class="${etat.adminOnglet === v ? "actif" : ""}" data-action="onglet-admin" data-v="${v}">${te("admin.onglet." + v)}</button>`).join("")}</div>
     ${blocInfo()}${corps}`;
 }
 
@@ -986,6 +1095,8 @@ const PAGES = {
   annuaire: pageAnnuaire,
   journal: pageJournal,
   board: pageBoard,
+  contact: pageContact,
+  fondateurs: pageFondateurs,
   admin: pageAdmin
 };
 const ONGLETS = ["accueil", "evenements", "calendrier", "news", "plus"];
@@ -1122,6 +1233,31 @@ racine.addEventListener("submit", async (ev) => {
     } catch (err) { message(texteErreur(err)); occupe(form, false); }
   }
 
+  if (form.id === "form-contact") {
+    if (v.site) return; // champ piège rempli par un robot
+    if (!v.clubId || !v.nom || !v.message || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email || "")) return message(t("val.contact"));
+    occupe(form, true);
+    try {
+      const m = { clubId: v.clubId, nom: v.nom, email: v.email, objet: v.objet || "o5", message: v.message, creeLe: new Date().toISOString() };
+      if (etat.user) m.uid = etat.user.uid;
+      await addDoc(collection(db, "messages"), m);
+      etat.contactEnvoye = v.clubId; etat.messages = null;
+      afficher();
+    } catch (e) { message(texteErreur(e)); occupe(form, false); }
+  }
+
+  if (form.id === "form-fondateurs") {
+    const d = lireFormFondateurs(form);
+    d.liste = d.liste.filter((x) => x.nom).slice(0, 12);
+    occupe(form, true);
+    try {
+      await setDoc(doc(db, "public", "fondateurs"), d);
+      etat.fondateurs = d; etat.fondBrouillon = null;
+      etat.info = { type: "ok", texte: t("fond.ok") };
+      afficher();
+    } catch (e) { message(texteErreur(e)); occupe(form, false); }
+  }
+
   if (form.id === "form-journal") {
     const fichier = form.querySelector("#pdf").files[0];
     if (!v.titre || !v.clubId || !v.date || !fichier) return message(t("val.journal"));
@@ -1192,6 +1328,24 @@ racine.addEventListener("click", async (ev) => {
   }
 
   if (action === "mode-journal") { etat.modeJournal = v; afficher(false); }
+  if (action === "contact-autre") { etat.contactEnvoye = ""; afficher(); }
+  if (action === "fond-ajout" || action === "fond-suppr") {
+    const d = lireFormFondateurs(document.getElementById("form-fondateurs"));
+    if (action === "fond-ajout") d.liste.push({ nom: "", role: "", bio: "", linkedin: "", photo: "" });
+    else d.liste.splice(Number(v), 1);
+    etat.fondBrouillon = d;
+    afficher(false);
+  }
+  if (action === "suppr-message") {
+    if (!window.confirm(t("admin.msgConfirmer"))) return;
+    el.disabled = true;
+    try {
+      await deleteDoc(doc(db, "messages", el.dataset.id));
+      etat.messages = (etat.messages || []).filter((m) => m.id !== el.dataset.id);
+      etat.info = { type: "ok", texte: t("admin.msgSupprOk") };
+    } catch (e) { etat.info = { type: "erreur", texte: texteErreur(e) }; }
+    afficher(false);
+  }
   if (action === "video") {
     document.getElementById("video").innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${VIDEO}?autoplay=1" title="${te("acc.videoTitre")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }
@@ -1291,6 +1445,11 @@ racine.addEventListener("change", async (ev) => {
     try { brouillon.photo = await reduirePhoto(ev.target.files[0]); etat.brouillon = brouillon; afficher(false, true); }
     catch (e) { message(t("val.photo")); }
   }
+  if (c === "photo-fondateur" && ev.target.files[0]) {
+    const d = lireFormFondateurs(ev.target.form);
+    try { d.liste[Number(ev.target.dataset.i)].photo = await reduirePhoto(ev.target.files[0]); etat.fondBrouillon = d; afficher(false, true); }
+    catch (e) { etat.info = { type: "erreur", texte: t("val.photo") }; afficher(false, true); }
+  }
   if (c === "csv" && ev.target.files[0]) {
     etat.info = null;
     const liste = fichesDepuisCSV(await ev.target.files[0].text());
@@ -1320,6 +1479,6 @@ racine.addEventListener("input", (ev) => {
   }
 });
 
-window.addEventListener("hashchange", () => { if (!etat.garderInfo) etat.info = null; etat.garderInfo = false; etat.brouillon = null; afficher(); });
+window.addEventListener("hashchange", () => { if (!etat.garderInfo) etat.info = null; etat.garderInfo = false; etat.brouillon = null; etat.fondBrouillon = null; etat.contactEnvoye = ""; afficher(); });
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); etat.installer = e; if (route() === "accueil") afficher(false); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
