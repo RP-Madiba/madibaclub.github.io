@@ -184,3 +184,23 @@ ul.parcours { margin: 0; padding-left: 18px; font-size: 13px; display: flex; fle
 .identite > div { flex: 1; min-width: 0; }
 .avatar { width: 56px; height: 56px; flex: none; border-radius: 50%; object-fit: cover; background: #111111; color: var(--or); display: flex; align-items: center; justify-content: center; font-weight: 600; }
 .champ input[type="file"] { padding: 9px 10px; font-size: 14px; }
+
+/* Version 5 : journal, board, vidéo */
+.journal { flex-direction: row; gap: 14px; align-items: flex-start; }
+.journal .couverture { width: 84px; flex: none; border-radius: 6px; border: 1px solid var(--bord); }
+.journal .corps { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.lien-btn svg { vertical-align: middle; }
+a.lien-btn { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.j-pages { margin: 0 -16px; display: flex; flex-direction: column; gap: 8px; background: #111111; }
+.j-pages img { display: block; width: 100%; height: auto; }
+.j-texte { display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 1.6; }
+.j-texte .surtitre { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--bord); }
+.j-texte .j-h1 { font-size: 26px; }
+.j-texte .j-h2 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 22px; font-weight: 700; margin: 0; }
+.j-texte .j-h3 { margin: 6px 0 0; font-size: 14px; font-weight: 600; letter-spacing: .02em; color: var(--or-texte); }
+.video { position: relative; aspect-ratio: 16 / 9; background: #161512; border: 1px solid var(--bord); border-radius: 12px; overflow: hidden; }
+.video button { position: absolute; inset: 0; width: 100%; border: 0; background: transparent; color: #F3EFE6; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font: 600 15px Inter, sans-serif; }
+.video button svg { width: 64px; height: 64px; padding: 16px; border-radius: 50%; background: var(--or); fill: #111111; }
+.video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+details.carte summary { min-height: 44px; font-size: 15px; color: var(--texte); }
+details.carte[open] { gap: 12px; }

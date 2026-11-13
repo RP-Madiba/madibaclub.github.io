@@ -1,6 +1,6 @@
 // Service worker : rend l'application installable et utilisable avec une connexion instable.
-const CACHE = "madiba-v4";
-const FICHIERS = ["./", "index.html", "style.css", "app.js", "firebase-config.js", "i18n.js", "images/groupe.jpg",
+const CACHE = "madiba-v5";
+const FICHIERS = ["./", "index.html", "style.css", "app.js", "firebase-config.js", "i18n.js", "journal.js", "images/groupe.jpg",
   "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/logo-or.png"];
 
 self.addEventListener("install", (e) => {

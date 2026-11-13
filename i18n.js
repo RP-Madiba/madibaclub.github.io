@@ -400,4 +400,45 @@ Object.assign(nl, {
   "val.photo": "Deze afbeelding kon niet worden gelezen. Probeer een andere foto.", "val.naissance": "De geboortedatum is niet geldig."
 });
 
+// ---- Ajouts de la version 5 : Journal du Madiba, board, vidéo, réseaux ----
+Object.assign(fr, {
+  "journal.pastille": "Journal", "journal.lire": "Lire le journal", "journal.pages": "Pages", "journal.texte": "Texte", "journal.page": "Page {n}",
+  "journal.retour": "Retour aux news", "journal.introuvable": "Ce journal n'existe pas ou vous n'y avez pas accès.",
+  "journal.introTexte": "Texte extrait automatiquement du journal. L'ordre des paragraphes peut différer de la mise en page : le mode « Pages » reste la référence.",
+  "admin.unJournal": "Un journal", "admin.jAide": "Choisissez le PDF du journal. L'application le convertit en pages à faire défiler et en texte lisible sur téléphone. Comptez environ une minute.",
+  "admin.jTitre": "Titre", "admin.jNumero": "Numéro et année", "admin.jPeriode": "Période couverte", "admin.jDate": "Date de parution", "admin.jFichier": "Fichier PDF",
+  "admin.publierJournal": "Convertir et publier le journal", "admin.jConversion": "Conversion de la page {i} sur {n}…", "admin.jEnvoi": "Envoi de la page {i} sur {n}…",
+  "admin.jOk": "« {titre} » est publié ({n} pages).", "admin.jPublies": "Journaux publiés", "admin.aucunJournal": "Aucun journal.",
+  "val.journal": "Le titre, la date de parution, le club et le fichier PDF sont obligatoires.", "val.pdf": "Ce fichier PDF n'a pas pu être lu.", "val.pdfGros": "Ce PDF dépasse 40 pages : il est trop long pour être publié ici.",
+  "board.titre": "Le board", "board.anciens": "Les boards précédents", "board.annee": "Board {annee}", "board.altImage": "Organigramme du board {annee}",
+  "plus.boardSous": "L'équipe dirigeante de cette année et des années précédentes",
+  "acc.videoTitre": "Le Madiba en vidéo", "acc.videoTexte": "Le board 2024-2025 présente le Madiba Club.", "acc.videoBouton": "Lancer la vidéo", "acc.suivre": "Suivre le Madiba Club"
+});
+Object.assign(en, {
+  "journal.pastille": "Journal", "journal.lire": "Read the journal", "journal.pages": "Pages", "journal.texte": "Text", "journal.page": "Page {n}",
+  "journal.retour": "Back to news", "journal.introuvable": "This journal does not exist or you do not have access to it.",
+  "journal.introTexte": "Text extracted automatically from the journal. The order of paragraphs may differ from the layout: the “Pages” view remains the reference.",
+  "admin.unJournal": "A journal", "admin.jAide": "Choose the journal's PDF. The app converts it into scrollable pages and into text that is easy to read on a phone. Allow about a minute.",
+  "admin.jTitre": "Title", "admin.jNumero": "Issue and year", "admin.jPeriode": "Period covered", "admin.jDate": "Publication date", "admin.jFichier": "PDF file",
+  "admin.publierJournal": "Convert and publish the journal", "admin.jConversion": "Converting page {i} of {n}…", "admin.jEnvoi": "Uploading page {i} of {n}…",
+  "admin.jOk": "“{titre}” is published ({n} pages).", "admin.jPublies": "Published journals", "admin.aucunJournal": "No journal.",
+  "val.journal": "Title, publication date, club and PDF file are required.", "val.pdf": "This PDF file could not be read.", "val.pdfGros": "This PDF is over 40 pages: it is too long to be published here.",
+  "board.titre": "The board", "board.anciens": "Previous boards", "board.annee": "Board {annee}", "board.altImage": "Organisation chart of the {annee} board",
+  "plus.boardSous": "The leadership team of this year and previous years",
+  "acc.videoTitre": "Madiba on video", "acc.videoTexte": "The 2024-2025 board presents Madiba Club.", "acc.videoBouton": "Play the video", "acc.suivre": "Follow Madiba Club"
+});
+Object.assign(nl, {
+  "journal.pastille": "Journal", "journal.lire": "Het journal lezen", "journal.pages": "Pagina's", "journal.texte": "Tekst", "journal.page": "Pagina {n}",
+  "journal.retour": "Terug naar het nieuws", "journal.introuvable": "Dit journal bestaat niet of je hebt er geen toegang toe.",
+  "journal.introTexte": "Tekst automatisch uit het journal gehaald. De volgorde van de alinea's kan afwijken van de opmaak: de weergave ‘Pagina's’ blijft de referentie.",
+  "admin.unJournal": "Een journal", "admin.jAide": "Kies de pdf van het journal. De app zet hem om in pagina's om door te scrollen en in tekst die goed leesbaar is op een telefoon. Reken op ongeveer een minuut.",
+  "admin.jTitre": "Titel", "admin.jNumero": "Nummer en jaar", "admin.jPeriode": "Periode", "admin.jDate": "Publicatiedatum", "admin.jFichier": "Pdf-bestand",
+  "admin.publierJournal": "Journal omzetten en publiceren", "admin.jConversion": "Pagina {i} van {n} wordt omgezet…", "admin.jEnvoi": "Pagina {i} van {n} wordt verstuurd…",
+  "admin.jOk": "‘{titre}’ is gepubliceerd ({n} pagina's).", "admin.jPublies": "Gepubliceerde journals", "admin.aucunJournal": "Geen journal.",
+  "val.journal": "Titel, publicatiedatum, club en pdf-bestand zijn verplicht.", "val.pdf": "Dit pdf-bestand kon niet worden gelezen.", "val.pdfGros": "Deze pdf telt meer dan 40 pagina's: te lang om hier te publiceren.",
+  "board.titre": "Het board", "board.anciens": "Vorige boards", "board.annee": "Board {annee}", "board.altImage": "Organigram van het board {annee}",
+  "plus.boardSous": "Het bestuursteam van dit jaar en van de vorige jaren",
+  "acc.videoTitre": "Madiba in beeld", "acc.videoTexte": "Het board 2024-2025 stelt Madiba Club voor.", "acc.videoBouton": "Video starten", "acc.suivre": "Volg Madiba Club"
+});
+
 export const T = { fr, en, nl };

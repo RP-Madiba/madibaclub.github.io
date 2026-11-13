@@ -11,6 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { T } from "./i18n.js";
+import { convertirPDF } from "./journal.js";
 
 // Les clubs du réseau. Pour en ajouter un : une ligne ici (et son nom dans i18n.js).
 const CLUBS = [
@@ -38,7 +39,7 @@ const aujourdhui = new Date();
 const etat = {
   langue: langueInitiale(),
   pret: false, user: null, profil: null, erreurProfil: "", inscription: null, installer: null,
-  events: null, news: null, erreurContenus: "", membres: null, fiches: null, codes: null, importApercu: null,
+  events: null, news: null, journaux: null, pagesJournal: {}, modeJournal: "pages", erreurContenus: "", membres: null, fiches: null, codes: null, importApercu: null,
   filtreStatut: "avenir", filtreClub: "tous",
   mois: { a: aujourdhui.getFullYear(), m: aujourdhui.getMonth() },
   adminOnglet: "publier", typePublication: "event", info: null,
@@ -62,7 +63,9 @@ const ROLES_MEMBRES = ["member", "admin", "superadmin"];
 const estMembre = () => ROLES_MEMBRES.includes(role());
 const estAdmin = () => ["admin", "superadmin"].includes(role());
 const estSuper = () => role() === "superadmin";
-const route = () => (location.hash.replace(/^#\/?/, "") || "accueil").split("?")[0];
+const morceaux = () => (location.hash.replace(/^#\/?/, "") || "accueil").split("?")[0].split("/");
+const route = () => morceaux()[0];
+const param = () => morceaux()[1] || "";
 // "garderInfo" conserve le message à afficher pendant le changement de page.
 const aller = (r) => { if (route() === r) afficher(); else { etat.garderInfo = true; location.hash = "#/" + r; } };
 const p2 = (n) => String(n).padStart(2, "0");
@@ -165,7 +168,7 @@ async function chargerProfil(user) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null;
+  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null; etat.pagesJournal = {};
   if (user) {
     try { etat.profil = await chargerProfil(user); }
     catch (e) { etat.erreurProfil = texteErreur(e); }
@@ -209,6 +212,7 @@ async function chargerContenus() {
     etat.events = etat.events || []; etat.news = etat.news || [];
     etat.erreurContenus = texteErreur(e);
   }
+  try { etat.journaux = await lire("journaux"); } catch (e) { etat.journaux = etat.journaux || []; }
   afficher(false);
 }
 async function chargerMembres() {
@@ -309,8 +313,8 @@ function pageAccueil() {
     const prochains = trier(etat.events, "encours").concat(trier(etat.events, "avenir")).slice(0, 3);
     contenus += `<div class="titre-section"><h2>${te("acc.prochains")}</h2><a href="#/evenements">${te("toutVoir")}</a></div>`;
     contenus += prochains.length ? prochains.map((e) => carteEvent({ ...e, description: "" })).join("") : `<p class="gris">${te("acc.aucunEvent")}</p>`;
-    if (etat.news.length) {
-      contenus += `<div class="titre-section"><h2>${te("acc.dernieres")}</h2><a href="#/news">${te("toutVoir")}</a></div>` + etat.news.slice(0, 2).map((n) => carteNews(n, false, true)).join("");
+    if (fil().length) {
+      contenus += `<div class="titre-section"><h2>${te("acc.dernieres")}</h2><a href="#/news">${te("toutVoir")}</a></div>` + fil().slice(0, 2).map((x) => carteFil(x, true)).join("");
     }
   }
 
@@ -336,8 +340,18 @@ function pageAccueil() {
       <div><strong>800</strong><span>${te("acc.c4")}</span></div>
     </section>
     <section class="bloc">
+      <h2>${te("acc.videoTitre")}</h2>
+      <p class="gris">${te("acc.videoTexte")}</p>
+      <div class="video" id="video"><button type="button" data-action="video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>${te("acc.videoBouton")}</span></button></div>
+    </section>
+    <section class="bloc">
       <h2>${te("acc.partenairesTitre")}</h2>
       <p class="partenaires">${PARTENAIRES.map(esc).join(" · ")}</p>
+    </section>
+    <section class="bloc">
+      <h2>${te("acc.suivre")}</h2>
+      ${blocReseaux()}
+      <a class="btn contour" href="#/board">${te("board.titre")}</a>
     </section>`;
   return haut + erreurContenus() + contenus + presentation + blocInstallation();
 }
@@ -411,9 +425,86 @@ function pageCalendrier() {
 
 function pageNews() {
   let liste = chargement();
-  if (etat.news !== null) liste = etat.news.length ? etat.news.map((n) => carteNews(n)).join("") : `<p class="gris centre">${te("news.aucune")}</p>`;
+  if (etat.news !== null && etat.journaux !== null) liste = fil().length ? fil().map((x) => carteFil(x)).join("") : `<p class="gris centre">${te("news.aucune")}</p>`;
   return `<h1>${te("nav.news")}</h1>${erreurContenus()}${liste}`;
 }
+
+/* ---------- Journal du Madiba ---------- */
+const imageSure = (p) => (typeof p === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p) ? p : "");
+// Le fil des news réunit les news et les journaux, du plus récent au plus ancien.
+function fil() {
+  const tout = (etat.news || []).map((n) => ({ ...n, genre: "news" })).concat((etat.journaux || []).map((j) => ({ ...j, genre: "journal" })));
+  return tout.sort((x, y) => String(y.publieLe || "").localeCompare(String(x.publieLe || "")));
+}
+const carteFil = (x, court) => (x.genre === "journal" ? carteJournal(x) : carteNews(x, false, court));
+function carteJournal(j, admin) {
+  const sous = [j.numero, j.periode].filter(Boolean).join(" · ");
+  return `<article class="carte journal">
+    ${imageSure(j.couverture) ? `<img class="couverture" src="${j.couverture}" alt="">` : ""}
+    <div class="corps">
+      <p class="ligne-pastilles"><span class="pastille or-plein">${te("journal.pastille")}</span> ${pastilleClub(j.clubId)} ${pastilleVis(j)}</p>
+      <h3>${esc(j.titre)}</h3>
+      ${sous ? `<p class="petit gris">${esc(sous)}</p>` : ""}
+      ${admin ? `<button class="lien-btn danger" type="button" data-action="suppr-journal" data-id="${esc(j.id)}">${te("supprimer")}</button>`
+        : `<a class="btn contour petit-btn" href="#/journal/${esc(j.id)}">${te("journal.lire")}</a>`}
+    </div>
+  </article>`;
+}
+async function chargerPages(id) {
+  try {
+    const snap = await getDocs(collection(db, "journaux", id, "pages"));
+    etat.pagesJournal[id] = snap.docs.map((d) => d.data()).sort((a, b) => (a.n || 0) - (b.n || 0));
+  } catch (e) { etat.pagesJournal[id] = []; etat.info = { type: "erreur", texte: texteErreur(e) }; }
+  afficher(false);
+}
+function pageJournal() {
+  if (etat.journaux === null) return chargement();
+  const id = param();
+  const j = etat.journaux.find((x) => x.id === id);
+  const retour = `<a class="lien-btn" href="#/news">${ico("gauche")} ${te("journal.retour")}</a>`;
+  if (!j) return `${retour}<section class="carte"><p>${te("journal.introuvable")}</p></section>`;
+  const pages = etat.pagesJournal[id];
+  if (!pages) chargerPages(id);
+  const sous = [j.numero, j.periode].filter(Boolean).join(" · ");
+  let corps = chargement();
+  if (pages && etat.modeJournal === "pages") {
+    corps = `<div class="j-pages">${pages.map((p) => (imageSure(p.image) ? `<img src="${p.image}" alt="${esc(t("journal.page", { n: p.n }))}" loading="lazy">` : "")).join("")}</div>`;
+  } else if (pages) {
+    const balise = { h1: "h2", h2: "h3", h3: "h4", p: "p" };
+    corps = `<p class="petit gris">${te("journal.introTexte")}</p><div class="j-texte">${pages.map((p) => `
+      <p class="surtitre">${esc(t("journal.page", { n: p.n }))}</p>
+      ${(Array.isArray(p.blocs) ? p.blocs : []).map((b) => `<${balise[b.t] || "p"} class="j-${balise[b.t] ? b.t : "p"}">${esc(b.x)}</${balise[b.t] || "p"}>`).join("")}`).join("")}</div>`;
+  }
+  return `${retour}
+    <h1>${esc(j.titre)}</h1>
+    ${sous ? `<p class="gris">${esc(sous)}</p>` : ""}
+    <div class="onglets">${["pages", "texte"].map((m) => `<button type="button" class="${etat.modeJournal === m ? "actif" : ""}" data-action="mode-journal" data-v="${m}">${te("journal." + m)}</button>`).join("")}</div>
+    ${blocInfo()}${corps}`;
+}
+
+/* ---------- Le board ---------- */
+const BOARDS = [
+  { annee: "2026-2027", image: "images/board-2026.jpg", membres: [["Ekelle Biyiha", "Présidente"], ["Samuel Fandjo", "VP Opérationnel"], ["Mervédie Kivanda", "VP Interne"], ["Kadiatou Barry", "VP Externe"], ["Cécilia-Grâce Lufiauluisu", "Trésorière"], ["Sophie Diongue", "Directrice RH"]] },
+  { annee: "2025-2026", image: "images/board-2025.jpg", membres: [["Christopher Egnankou", "Président"], ["Aurélie Yombo", "VP Opérationnel"], ["Gaetan Aubry", "VP Externe"], ["Jenny Somberg", "VP Interne"], ["Naomi Amedegnato", "Trésorerie"]] },
+  { annee: "2024-2025", image: "images/board-2024.jpg", membres: [["Nathan Kwala", "Président"], ["Assiatou Diallo", "VP Opérationnel"], ["David Mbayo", "VP Externe"], ["Sophia Bokoko", "Direction RH"]] }
+];
+const RESEAUX = [
+  ["LinkedIn", "https://www.linkedin.com/company/madiba-club/"],
+  ["Instagram", "https://www.instagram.com/madiba_club/"],
+  ["YouTube", "https://www.youtube.com/@MadibaClub"]
+];
+const VIDEO = "4djR1rVj9-E";
+function pageBoard() {
+  const bloc = (b) => `<img class="photo" src="${b.image}" alt="${esc(t("board.altImage", { annee: b.annee }))}" loading="lazy">
+    <div class="liste">${b.membres.map(([nom, poste]) => `<div class="ligne"><span class="txt"><strong>${esc(nom)}</strong><span>${esc(poste)}</span></span></div>`).join("")}</div>`;
+  const [actuel, ...anciens] = BOARDS;
+  return `<h1>${te("board.titre")}</h1>
+    <p class="gris">Madiba Bruxelles · ${esc(actuel.annee)}</p>
+    ${bloc(actuel)}
+    <h2>${te("board.anciens")}</h2>
+    ${anciens.map((b) => `<details class="carte"><summary>${esc(t("board.annee", { annee: b.annee }))}</summary>${bloc(b)}</details>`).join("")}`;
+}
+const blocReseaux = () => `<div class="rangee">${RESEAUX.map(([nom, url]) => `<a class="btn contour petit-btn" href="${url}" target="_blank" rel="noopener">${nom}</a>`).join("")}</div>`;
 
 /* ---------- Connexion et inscription ---------- */
 const optionsClubs = (choisi, avecReseau) => `<option value="">${te("choisir")}</option>`
@@ -666,9 +757,12 @@ function pagePlus() {
     <div class="liste">${estMembre() ? lien("#/annuaire", t("annuaire.titre"), t("plus.annuaireSous")) : ligne(t("annuaire.titre"), t("plus.annuaireSous"), t("plus.reserve"))}</div>
     <div class="surtitre">${te("plus.reseau")}</div>
     <div class="liste">
+      ${lien("#/board", t("board.titre"), t("plus.boardSous"))}
       ${ligne(t("plus.fondateurs"), t("plus.fondateursSous"), t("bientot"))}
       ${ligne(t("plus.contact"), t("plus.contactSous"), t("bientot"))}
     </div>
+    <div class="surtitre">${te("acc.suivre")}</div>
+    ${blocReseaux()}
     <div class="surtitre">${te("langue.titre")}</div>
     <div class="puces">${LANGUES.map((l) => `<button type="button" class="puce ${etat.langue === l ? "actif" : ""}" data-action="langue" data-v="${l}">${te("langue." + l)}</button>`).join("")}</div>`;
 }
@@ -678,16 +772,29 @@ function champClub(avecReseau) {
   if (estSuper()) return `<div class="champ"><label for="clubId">${te("admin.club")}</label><select id="clubId" name="clubId" required>${optionsClubs(etat.profil.clubId, avecReseau)}</select></div>`;
   return `<input type="hidden" name="clubId" value="${esc(etat.profil.clubId)}"><p class="petit gris">${te("admin.pour")} <strong>${esc(nomClub(etat.profil.clubId))}</strong></p>`;
 }
-function champVisibilite(avecPole) {
+function champVisibilite(avecPole, defaut) {
   const choix = ["public", "members", "club"].concat(avecPole ? ["pole"] : []);
   return `<div class="champ"><label for="visibility">${te("admin.qui")}</label>
-      <select id="visibility" name="visibility">${choix.map((v) => `<option value="${v}">${te("admin.vis." + v)}</option>`).join("")}</select></div>
+      <select id="visibility" name="visibility">${choix.map((v) => `<option value="${v}"${v === defaut ? " selected" : ""}>${te("admin.vis." + v)}</option>`).join("")}</select></div>
     ${avecPole ? `<div class="champ"><label for="pole">${te("admin.pole")}</label><select id="pole" name="pole">${optionsPoles()}</select><span class="aide">${te("admin.poleAide")}</span></div>` : ""}`;
 }
 
 function adminPublier() {
   const ev = etat.typePublication === "event";
-  const formulaire = ev ? `<form id="form-event" novalidate>
+  const jr = etat.typePublication === "journal";
+  const formulaire = jr ? `<form id="form-journal" novalidate>
+      <p class="petit gris">${te("admin.jAide")}</p>
+      <div class="champ"><label for="titre">${te("admin.jTitre")}</label><input id="titre" name="titre" maxlength="120" value="Le Journal du Madiba" required></div>
+      <div class="deux">
+        <div class="champ"><label for="numero">${te("admin.jNumero")}</label><input id="numero" name="numero" maxlength="40" placeholder="N°1 · 2025-2026"></div>
+        <div class="champ"><label for="date">${te("admin.jDate")}</label><input id="date" name="date" type="date" required></div>
+      </div>
+      <div class="champ"><label for="periode">${te("admin.jPeriode")}</label><input id="periode" name="periode" maxlength="60" placeholder="Janvier-Février 2026"></div>
+      ${champClub(false)}
+      ${champVisibilite(false, "club")}
+      <div class="champ"><label for="pdf">${te("admin.jFichier")}</label><input id="pdf" type="file" accept="application/pdf,.pdf" required></div>
+      <button class="btn plein large" type="submit">${te("admin.publierJournal")}</button>
+    </form>` : ev ? `<form id="form-event" novalidate>
       <div class="champ"><label for="titre">${te("admin.evTitre")}</label><input id="titre" name="titre" maxlength="120" required></div>
       ${champClub(false)}
       <div class="deux">
@@ -711,7 +818,8 @@ function adminPublier() {
     </form>`;
   return `<div class="puces">
       <button type="button" class="puce ${ev ? "actif" : ""}" data-action="type" data-v="event">${te("admin.unEvent")}</button>
-      <button type="button" class="puce ${ev ? "" : "actif"}" data-action="type" data-v="news">${te("admin.uneNews")}</button>
+      <button type="button" class="puce ${!ev && !jr ? "actif" : ""}" data-action="type" data-v="news">${te("admin.uneNews")}</button>
+      <button type="button" class="puce ${jr ? "actif" : ""}" data-action="type" data-v="journal">${te("admin.unJournal")}</button>
     </div>
     <section class="carte"><div id="msg" aria-live="polite"></div>${formulaire}</section>`;
 }
@@ -724,6 +832,7 @@ function adminContenus() {
   const nws = etat.news.filter((n) => peutGerer(n.clubId));
   return `<h2>${te("admin.evPublies")}</h2>${evs.length ? evs.map((e) => carteEvent(e, true)).join("") : `<p class="gris">${te("admin.aucunEv")}</p>`}
     <h2>${te("admin.newsPubliees")}</h2>${nws.length ? nws.map((n) => carteNews(n, true)).join("") : `<p class="gris">${te("admin.aucuneNews")}</p>`}
+    <h2>${te("admin.jPublies")}</h2>${(etat.journaux || []).filter((j) => peutGerer(j.clubId)).length ? fil().filter((x) => x.genre === "journal" && peutGerer(x.clubId)).map((j) => carteJournal(j, true)).join("") : `<p class="gris">${te("admin.aucunJournal")}</p>`}
     <p class="petit gris">${te("admin.corriger")}</p>`;
 }
 
@@ -875,6 +984,8 @@ const PAGES = {
   plus: pagePlus,
   compte: pageCompte,
   annuaire: pageAnnuaire,
+  journal: pageJournal,
+  board: pageBoard,
   admin: pageAdmin
 };
 const ONGLETS = ["accueil", "evenements", "calendrier", "news", "plus"];
@@ -885,7 +996,7 @@ function afficher(remonter = true, forcer = false) {
   // On ne redessine pas un formulaire en cours de saisie quand des données arrivent en arrière-plan.
   if (!remonter && !forcer && document.activeElement && racine.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
   const r = PAGES[route()] ? route() : "accueil";
-  const onglet = ONGLETS.includes(r) ? r : "plus";
+  const onglet = ONGLETS.includes(r) ? r : r === "journal" ? "news" : "plus";
   document.documentElement.lang = etat.langue;
   document.body.classList.toggle("nuit", r === "accueil");
   racine.innerHTML = `
@@ -1011,6 +1122,32 @@ racine.addEventListener("submit", async (ev) => {
     } catch (err) { message(texteErreur(err)); occupe(form, false); }
   }
 
+  if (form.id === "form-journal") {
+    const fichier = form.querySelector("#pdf").files[0];
+    if (!v.titre || !v.clubId || !v.date || !fichier) return message(t("val.journal"));
+    const bouton = form.querySelector('button[type="submit"]');
+    const libelle = bouton.textContent;
+    occupe(form, true);
+    let conv;
+    try { conv = await convertirPDF(fichier, (i, n) => { bouton.textContent = t("admin.jConversion", { i, n }); }); }
+    catch (e) { message(t("val.pdf")); bouton.textContent = libelle; return occupe(form, false); }
+    if (conv.pages.length > 40) { message(t("val.pdfGros")); bouton.textContent = libelle; return occupe(form, false); }
+    try {
+      const ref = await addDoc(collection(db, "journaux"), {
+        titre: v.titre, numero: v.numero, periode: v.periode, clubId: v.clubId, visibility: v.visibility || "club", pole: "",
+        nbPages: conv.pages.length, couverture: conv.couverture, publieLe: v.date + "T12:00:00.000Z",
+        auteur: etat.user.uid, createdAt: serverTimestamp()
+      });
+      for (let i = 0; i < conv.pages.length; i++) {
+        bouton.textContent = t("admin.jEnvoi", { i: i + 1, n: conv.pages.length });
+        await setDoc(doc(db, "journaux", ref.id, "pages", String(i + 1).padStart(3, "0")), { n: i + 1, image: conv.pages[i].image, blocs: conv.pages[i].blocs });
+      }
+      etat.info = { type: "ok", texte: t("admin.jOk", { titre: v.titre, n: conv.pages.length }) };
+      etat.adminOnglet = "contenus";
+      afficher(); chargerContenus();
+    } catch (err) { message(texteErreur(err)); bouton.textContent = libelle; occupe(form, false); }
+  }
+
   if (form.id === "form-codes") {
     const codes = {};
     for (const c of CLUBS) {
@@ -1052,6 +1189,24 @@ racine.addEventListener("click", async (ev) => {
     else d.parcours.splice(Number(v), 1);
     etat.brouillon = d;
     afficher(false);
+  }
+
+  if (action === "mode-journal") { etat.modeJournal = v; afficher(false); }
+  if (action === "video") {
+    document.getElementById("video").innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${VIDEO}?autoplay=1" title="${te("acc.videoTitre")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  }
+  if (action === "suppr-journal") {
+    if (!window.confirm(t("admin.confirmer"))) return;
+    el.disabled = true;
+    try {
+      const id = el.dataset.id;
+      const pages = await getDocs(collection(db, "journaux", id, "pages"));
+      for (const d of pages.docs) await deleteDoc(doc(db, "journaux", id, "pages", d.id));
+      await deleteDoc(doc(db, "journaux", id));
+      delete etat.pagesJournal[id];
+      etat.info = { type: "ok", texte: t("admin.supprOk") };
+    } catch (e) { etat.info = { type: "erreur", texte: texteErreur(e) }; }
+    await chargerContenus();
   }
 
   if (action === "photo-retirer") {
