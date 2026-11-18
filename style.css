@@ -213,3 +213,11 @@ details.carte[open] { gap: 12px; }
 .hero-logo img { width: 180px; max-width: 70%; height: auto; }
 .hero-logo p { color: #E8E2D4; font-size: 14px; }
 .choix label span strong { font-weight: 600; }
+
+/* Version 8 : réponses aux événements, anniversaires */
+.rsvp { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.rsvp .puce { min-height: 40px; padding: 0 12px; }
+.rsvp-qui summary { min-height: 36px; font-size: 13px; }
+.anniv-jour { text-decoration: none; color: var(--texte); gap: 4px; }
+.anniv-mois { margin-top: 8px; }
+.anniv .btn { align-self: flex-start; }

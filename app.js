@@ -43,7 +43,7 @@ const etat = {
   filtreStatut: "avenir", filtreClub: "tous",
   mois: { a: aujourdhui.getFullYear(), m: aujourdhui.getMonth() },
   adminOnglet: "publier", typePublication: "event", info: null,
-  messages: null, configPublique: null, infoNotif: null, fondateurs: null, fondBrouillon: null, contactEnvoye: "", contactCellule: "", typeCompte: "membre", brouillon: null, rechAnnuaire: "", filtreAnnuaire: "tous"
+  messages: null, reponses: {}, filtreAnniv: "tous", configPublique: null, infoNotif: null, fondateurs: null, fondBrouillon: null, contactEnvoye: "", contactCellule: "", typeCompte: "membre", brouillon: null, rechAnnuaire: "", filtreAnnuaire: "tous"
 };
 const racine = document.getElementById("app");
 
@@ -168,7 +168,7 @@ async function chargerProfil(user) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null; etat.pagesJournal = {}; etat.messages = null;
+  etat.user = user; etat.profil = null; etat.erreurProfil = ""; etat.membres = null; etat.fiches = null; etat.codes = null; etat.brouillon = null; etat.importApercu = null; etat.pagesJournal = {}; etat.messages = null; etat.reponses = {};
   if (user) {
     try { etat.profil = await chargerProfil(user); }
     catch (e) { etat.erreurProfil = texteErreur(e); }
@@ -264,6 +264,7 @@ function carteEvent(e, admin) {
       <p class="petit gris">${esc(texteDate(e))}${e.lieu ? " · " + esc(e.lieu) : ""}</p>
       <p>${pastilleClub(e.clubId)} ${pastilleVis(e)}${st === "encours" ? ` <span class="pastille or">${te("ev.encours")}</span>` : ""}</p>
       ${e.description && !admin ? `<p class="description">${esc(e.description)}</p>` : ""}
+      ${blocReponse(e, admin)}
       ${admin ? `<button class="lien-btn danger" type="button" data-action="suppr" data-col="events" data-id="${esc(e.id)}">${te("supprimer")}</button>` : ""}
     </div>
   </article>`;
@@ -300,7 +301,7 @@ function pageAccueil() {
     </section>`;
   if (etat.user && etat.erreurProfil) haut += `<div class="message erreur" role="alert">${esc(etat.erreurProfil)}</div>`;
   if (etat.user && !p && !etat.erreurProfil) haut += pageProfilInitial();
-  haut += blocInfo();
+  haut += blocInfo() + blocAnnivAccueil();
   if (p && p.role === "pending") {
     haut += `<section class="carte"><h2>${te("acc.publicTitre")}</h2><p>${te("acc.publicTexte")}</p>
       <a class="btn contour" href="#/compte">${te("code.jai")}</a></section>`;
@@ -692,6 +693,131 @@ function adminNotifications() {
     </form></section>`;
 }
 
+/* ---------- Réponses aux événements (je viens / peut-être / je ne viens pas) ---------- */
+const STATUTS_REPONSE = ["oui", "peutetre", "non"];
+let fileReponses = new Set();
+function demanderReponses(id) {
+  if (!etat.user || etat.reponses[id]) return;
+  if (!fileReponses.size) setTimeout(chargerReponses, 0);
+  fileReponses.add(id);
+}
+async function chargerReponses() {
+  const ids = [...fileReponses]; fileReponses = new Set();
+  ids.forEach((id) => { etat.reponses[id] = { chargement: true, liste: [], moi: "" }; });
+  const uid = etat.user && etat.user.uid;
+  await Promise.all(ids.map(async (id) => {
+    try {
+      let liste = [];
+      if (estMembre()) {
+        const snap = await getDocs(collection(db, "events", id, "reponses"));
+        liste = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+      } else if (uid) {
+        const d = await getDoc(doc(db, "events", id, "reponses", uid));
+        if (d.exists()) liste = [{ uid, ...d.data() }];
+      }
+      const mienne = liste.find((r) => r.uid === uid);
+      etat.reponses[id] = { liste, moi: mienne ? mienne.statut : "" };
+    } catch (e) { etat.reponses[id] = { liste: [], moi: "", erreur: true }; }
+  }));
+  afficher(false);
+}
+function compteReponses(r) {
+  const n = { oui: 0, peutetre: 0, non: 0 };
+  (r ? r.liste : []).forEach((x) => { if (n[x.statut] !== undefined) n[x.statut]++; });
+  return n;
+}
+const nomsReponses = (r, statut) => r.liste.filter((x) => x.statut === statut).map((x) => `${x.prenom} ${x.nom}`).sort((a, b) => a.localeCompare(b));
+function blocReponse(e, admin) {
+  const passe = statut(e) === "passes";
+  if (!etat.user) return passe ? "" : `<p class="petit"><a href="#/connexion">${te("rsvp.connexion")}</a></p>`;
+  demanderReponses(e.id);
+  const r = etat.reponses[e.id];
+  if (!r || r.chargement) return "";
+  const n = compteReponses(r);
+  const listes = (statuts) => statuts.filter((s) => n[s]).map((s) => `<p class="petit"><strong>${te("rsvp.liste." + s)}</strong> ${esc(nomsReponses(r, s).join(", "))}</p>`).join("");
+  const resume = estMembre() && (n.oui || n.peutetre)
+    ? `<details class="rsvp-qui"><summary>${esc(t("rsvp.resume", { oui: n.oui, peut: n.peutetre }))}</summary>${listes(admin ? STATUTS_REPONSE : ["oui", "peutetre"])}</details>`
+    : (admin && n.non ? `<details class="rsvp-qui"><summary>${esc(t("rsvp.resume", { oui: 0, peut: 0 }))}</summary>${listes(["non"])}</details>` : "");
+  if (admin || passe) return resume;
+  if (!etat.profil) return `<p class="petit"><a href="#/compte">${te("rsvp.profil")}</a></p>`;
+  return `<div class="rsvp" role="group" aria-label="${te("rsvp.question")}">
+      ${STATUTS_REPONSE.map((s) => `<button type="button" class="puce ${r.moi === s ? "actif" : ""}" aria-pressed="${r.moi === s ? "true" : "false"}" data-action="rsvp" data-id="${esc(e.id)}" data-v="${s}">${te("rsvp." + s)}</button>`).join("")}
+    </div>${resume}`;
+}
+async function repondre(id, choix) {
+  const uid = etat.user.uid;
+  const r = etat.reponses[id] || { liste: [], moi: "" };
+  const ref = doc(db, "events", id, "reponses", uid);
+  if (r.moi === choix) {
+    await deleteDoc(ref);
+    r.liste = r.liste.filter((x) => x.uid !== uid); r.moi = "";
+  } else {
+    const p = etat.profil;
+    const donnees = { statut: choix, prenom: p.prenom, nom: p.nom, clubId: p.clubId || "", majLe: new Date().toISOString() };
+    await setDoc(ref, donnees);
+    r.liste = r.liste.filter((x) => x.uid !== uid).concat([{ uid, ...donnees }]); r.moi = choix;
+  }
+  etat.reponses[id] = r;
+}
+
+/* ---------- Anniversaires (membres uniquement) ---------- */
+const naissanceOk = (u) => /^\d{4}-\d{2}-\d{2}$/.test(u.naissance || "");
+function prochainAnniv(u) {
+  const auj = new Date(); auj.setHours(0, 0, 0, 0);
+  let d = new Date(auj.getFullYear(), +u.naissance.slice(5, 7) - 1, +u.naissance.slice(8, 10));
+  if (d < auj) d = new Date(auj.getFullYear() + 1, +u.naissance.slice(5, 7) - 1, +u.naissance.slice(8, 10));
+  return { date: d, jours: Math.round((d - auj) / 86400000) };
+}
+function annivDuJour() {
+  if (!estMembre() || etat.membres === null) return [];
+  return personnes().filter(naissanceOk).filter((u) => prochainAnniv(u).jours === 0);
+}
+function blocAnnivAccueil() {
+  if (!estMembre()) return "";
+  if (etat.membres === null) { chargerMembres(); return ""; }
+  const l = annivDuJour();
+  if (!l.length) return "";
+  return `<a class="carte info anniv-jour" href="#/anniversaires">
+      <span class="surtitre">${te("anniv.aujourdhui")}</span>
+      <strong>${esc(l.map((u) => `${u.prenom} ${u.nom}`).join(", "))}</strong>
+      <span class="petit">${te("anniv.souhaiter")}</span>
+    </a>`;
+}
+function pageAnniversaires() {
+  if (!estMembre()) {
+    return `<h1>${te("anniv.titre")}</h1><section class="carte"><p>${te("anniv.reserve")}</p>
+      <a class="btn contour" href="${etat.user ? "#/compte" : "#/connexion"}">${te(etat.user ? "code.jai" : "seConnecter")}</a></section>`;
+  }
+  if (etat.membres === null) { chargerMembres(); return `<h1>${te("anniv.titre")}</h1>` + chargement(); }
+  const filtre = etat.filtreAnniv;
+  const liste = personnes().filter(naissanceOk)
+    .filter((u) => filtre === "tous" || u.clubId === filtre)
+    .map((u) => ({ ...u, prochain: prochainAnniv(u) }))
+    .sort((a, b) => a.prochain.jours - b.prochain.jours);
+  const quand = (j) => (j === 0 ? t("anniv.jour0") : j === 1 ? t("anniv.jour1") : j <= 30 ? t("anniv.dans", { n: j }) : "");
+  const carte = (u) => `<article class="carte anniv ${u.prochain.jours === 0 ? "info" : ""}">
+      <div class="identite">${avatar(u)}<div>
+        <p><strong>${esc(u.prenom)} ${esc(u.nom)}</strong></p>
+        <p class="petit">${esc(majuscule(fmt({ weekday: "long", day: "numeric", month: "long" }, u.prochain.date)))}${quand(u.prochain.jours) ? ` · <strong>${esc(quand(u.prochain.jours))}</strong>` : ""}</p>
+        <p>${pastilleClub(u.clubId)} ${pastilles(u)}</p>
+      </div></div>
+      ${u.prochain.jours === 0 && u.telephone ? `<a class="btn or petit-btn" href="https://wa.me/${esc(u.telephone.replace(/[^\d]/g, ""))}" target="_blank" rel="noopener">${te("anniv.whatsapp")}</a>` : ""}
+    </article>`;
+  // Regroupement par mois, en commençant par aujourd'hui.
+  let html = "", cle = "";
+  liste.forEach((u) => {
+    const titre = u.prochain.jours === 0 ? t("anniv.aujourdhui") : majuscule(fmt({ month: "long", year: "numeric" }, u.prochain.date));
+    if (titre !== cle) { cle = titre; html += `<h2 class="anniv-mois">${esc(titre)}</h2>`; }
+    html += carte(u);
+  });
+  const filtres = ["tous"].concat(CLUBS.map((c) => c.id));
+  return `<h1>${te("anniv.titre")}</h1>
+    <p class="gris petit">${te("anniv.intro")}</p>
+    <div class="puces">${filtres.map((v) => `<button type="button" class="puce ${filtre === v ? "actif" : ""}" data-action="filtre-anniv" data-v="${v}">${esc(v === "tous" ? t("tousClubs") : nomCourt(v))}</button>`).join("")}</div>
+    ${html || `<p class="gris centre">${te("annuaire.aucunAnniv")}</p>`}
+    ${etat.profil && !naissanceOk(etat.profil) ? `<p class="petit gris centre">${te("anniv.absent")} <a href="#/compte">${te("compte.titre")}</a></p>` : ""}`;
+}
+
 /* ---------- Connexion et inscription ---------- */
 const optionsClubs = (choisi, avecReseau) => `<option value="">${te("choisir")}</option>`
   + CLUBS.concat(avecReseau ? [RESEAU] : []).map((c) => `<option value="${esc(c.id)}"${c.id === choisi ? " selected" : ""}>${esc(nomClub(c.id))}</option>`).join("");
@@ -940,7 +1066,8 @@ function pagePlus() {
       ${estAdmin() ? lien("#/admin", t("admin.titre"), t("plus.adminSous")) : ""}
     </div>
     <div class="surtitre">${te("plus.membres")}</div>
-    <div class="liste">${estMembre() ? lien("#/annuaire", t("annuaire.titre"), t("plus.annuaireSous")) : ligne(t("annuaire.titre"), t("plus.annuaireSous"), t("plus.reserve"))}</div>
+    <div class="liste">${estMembre() ? lien("#/annuaire", t("annuaire.titre"), t("plus.annuaireSous")) + lien("#/anniversaires", t("anniv.titre"), t("plus.annivSous"))
+      : ligne(t("annuaire.titre"), t("plus.annuaireSous"), t("plus.reserve")) + ligne(t("anniv.titre"), t("plus.annivSous"), t("plus.reserve"))}</div>
     <div class="surtitre">${te("plus.reseau")}</div>
     <div class="liste">
       ${lien("#/board", t("board.titre"), t("plus.boardSous"))}
@@ -1178,6 +1305,7 @@ const PAGES = {
   journal: pageJournal,
   board: pageBoard,
   contact: pageContact,
+  anniversaires: pageAnniversaires,
   fondateurs: pageFondateurs,
   admin: pageAdmin
 };
@@ -1421,6 +1549,13 @@ racine.addEventListener("click", async (ev) => {
   }
 
   if (action === "mode-journal") { etat.modeJournal = v; afficher(false); }
+  if (action === "filtre-anniv") { etat.filtreAnniv = v; afficher(false); }
+  if (action === "rsvp") {
+    el.disabled = true;
+    try { await repondre(el.dataset.id, v); }
+    catch (e) { etat.info = { type: "erreur", texte: texteErreur(e) }; }
+    afficher(false);
+  }
   if (action === "notif-activer" || action === "notif-desactiver") {
     el.disabled = true;
     try {
@@ -1506,6 +1641,11 @@ racine.addEventListener("click", async (ev) => {
     if (!window.confirm(t("admin.confirmer"))) return;
     el.disabled = true;
     try {
+      if (el.dataset.col === "events") {
+        const reps = await getDocs(collection(db, "events", el.dataset.id, "reponses"));
+        for (const d of reps.docs) await deleteDoc(doc(db, "events", el.dataset.id, "reponses", d.id));
+        delete etat.reponses[el.dataset.id];
+      }
       await deleteDoc(doc(db, el.dataset.col, el.dataset.id));
       etat.info = { type: "ok", texte: t("admin.supprOk") };
     } catch (e) { etat.info = { type: "erreur", texte: texteErreur(e) }; }

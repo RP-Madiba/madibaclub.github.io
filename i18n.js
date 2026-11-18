@@ -526,4 +526,33 @@ Object.assign(nl, {
   "err.notif/erreur": "De meldingen konden niet worden aangezet. Probeer het zo meteen opnieuw."
 });
 
+// ---- Ajouts de la version 8 : réponses aux événements, page anniversaires ----
+Object.assign(fr, {
+  "rsvp.question": "Venez-vous ?", "rsvp.oui": "Je viens", "rsvp.peutetre": "Peut-être", "rsvp.non": "Je ne viens pas",
+  "rsvp.connexion": "Connectez-vous pour dire si vous venez", "rsvp.profil": "Complétez votre profil pour répondre",
+  "rsvp.resume": "Oui : {oui} · Peut-être : {peut}", "rsvp.liste.oui": "Viennent :", "rsvp.liste.peutetre": "Peut-être :", "rsvp.liste.non": "Ne viennent pas :",
+  "anniv.titre": "Anniversaires", "anniv.intro": "Les anniversaires des membres et des alumni, du plus proche au plus lointain. Seuls le jour et le mois sont affichés.",
+  "anniv.aujourdhui": "Aujourd'hui", "anniv.jour0": "Aujourd'hui", "anniv.jour1": "Demain", "anniv.dans": "Dans {n} jours",
+  "anniv.souhaiter": "Pensez à lui souhaiter !", "anniv.whatsapp": "Souhaiter sur WhatsApp",
+  "anniv.absent": "Votre date de naissance n'est pas renseignée. Pour l'ajouter :", "plus.annivSous": "Les anniversaires des membres, mois par mois", "anniv.reserve": "Les anniversaires sont réservés aux membres des clubs Madiba."
+});
+Object.assign(en, {
+  "rsvp.question": "Are you coming?", "rsvp.oui": "I'm coming", "rsvp.peutetre": "Maybe", "rsvp.non": "I can't come",
+  "rsvp.connexion": "Sign in to say whether you are coming", "rsvp.profil": "Complete your profile to reply",
+  "rsvp.resume": "Yes: {oui} · Maybe: {peut}", "rsvp.liste.oui": "Coming:", "rsvp.liste.peutetre": "Maybe:", "rsvp.liste.non": "Not coming:",
+  "anniv.titre": "Birthdays", "anniv.intro": "Birthdays of members and alumni, from the nearest to the furthest. Only the day and month are shown.",
+  "anniv.aujourdhui": "Today", "anniv.jour0": "Today", "anniv.jour1": "Tomorrow", "anniv.dans": "In {n} days",
+  "anniv.souhaiter": "Remember to wish them a happy birthday!", "anniv.whatsapp": "Send wishes on WhatsApp",
+  "anniv.absent": "Your date of birth is missing. To add it:", "plus.annivSous": "Members' birthdays, month by month", "anniv.reserve": "Birthdays are reserved for members of the Madiba clubs."
+});
+Object.assign(nl, {
+  "rsvp.question": "Kom je?", "rsvp.oui": "Ik kom", "rsvp.peutetre": "Misschien", "rsvp.non": "Ik kom niet",
+  "rsvp.connexion": "Log in om te laten weten of je komt", "rsvp.profil": "Vul je profiel aan om te antwoorden",
+  "rsvp.resume": "Ja: {oui} · Misschien: {peut}", "rsvp.liste.oui": "Komen:", "rsvp.liste.peutetre": "Misschien:", "rsvp.liste.non": "Komen niet:",
+  "anniv.titre": "Verjaardagen", "anniv.intro": "De verjaardagen van leden en alumni, van de dichtstbijzijnde tot de verste. Alleen dag en maand worden getoond.",
+  "anniv.aujourdhui": "Vandaag", "anniv.jour0": "Vandaag", "anniv.jour1": "Morgen", "anniv.dans": "Over {n} dagen",
+  "anniv.souhaiter": "Vergeet niet een gelukkige verjaardag te wensen!", "anniv.whatsapp": "Wensen via WhatsApp",
+  "anniv.absent": "Je geboortedatum ontbreekt. Om ze toe te voegen:", "plus.annivSous": "De verjaardagen van de leden, maand per maand", "anniv.reserve": "De verjaardagen zijn voorbehouden aan leden van de Madiba-clubs."
+});
+
 export const T = { fr, en, nl };
