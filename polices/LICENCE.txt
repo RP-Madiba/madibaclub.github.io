@@ -1,0 +1,2 @@
+Polices Inter et Cormorant Garamond (sous-ensemble latin), sous licence SIL Open Font License 1.1.
+https://openfontlicense.org — https://github.com/rsms/inter — https://github.com/CatharsisFonts/Cormorant

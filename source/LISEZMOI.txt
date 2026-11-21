@@ -1,0 +1,3 @@
+Code source lisible de l'application Madiba Club (version madiba-af6ad9d302).
+Ce dossier n'est pas utilisé par l'application : il sert à la modifier plus tard.
+Pour reconstruire : npm install esbuild@0.23.1 firebase@10.12.2 sharp@0.33.5, puis node construction/construire.js <source> <sortie>.

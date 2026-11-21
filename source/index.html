@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Madiba Club</title>
+<meta name="description" content="L'application du réseau Madiba Club : événements, actualités et annuaire des membres.">
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Madiba Club">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<!-- Les fichiers de l'application sont demandés tous ensemble, sans attendre l'un l'autre. -->
+<!--PRECHARGEMENTS-->
+<script>
+  // Avant tout : la bonne langue, le fond noir de l'accueil, et la grande photo demandée en premier.
+  (function () {
+    var l = "fr";
+    try { l = localStorage.getItem("madiba-langue") || (navigator.language || "fr").slice(0, 2).toLowerCase(); } catch (e) {}
+    if (["fr", "en", "nl"].indexOf(l) < 0) l = "fr";
+    var x = document.createElement("link"); x.rel = "modulepreload"; x.href = "i18n-" + l + ".js"; document.head.appendChild(x);
+    var accueil = /^#?\/?(accueil)?$/.test(location.hash);
+    if (accueil) {
+      var p = document.createElement("link"); p.rel = "preload"; p.as = "image"; p.type = "image/webp";
+      p.setAttribute("imagesrcset", "images/groupe-800.webp 800w, images/groupe-1200.webp 1200w");
+      p.setAttribute("imagesizes", "(min-width: 760px) 720px, 100vw"); p.setAttribute("fetchpriority", "high");
+      document.head.appendChild(p);
+      document.documentElement.className = "nuit-avant";
+    }
+    // Polices déjà sur l'appareil : tout de suite. Première visite : après l'application (plus urgente).
+    try { if (localStorage.getItem("madiba-polices")) { var f = document.createElement("link"); f.rel = "stylesheet"; f.href = "polices.css"; document.head.appendChild(f); } } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script>if (document.documentElement.className === "nuit-avant") document.body.className = "nuit";</script>
+<div id="app">
+  <!-- Squelette affiché instantanément, remplacé dès que l'application est prête. -->
+  <header class="entete"><span class="marque"><span class="sq rond-sq"></span><span class="nom titre">Madiba Club</span></span></header>
+  <main>
+    <div class="squelette">
+      <p class="cache" role="status">Chargement…</p>
+      <div class="sq sq-hero"></div>
+      <div class="sq-carte"><div class="sq sq-image"></div><div class="sq sq-ligne court"></div><div class="sq sq-ligne"></div><div class="sq sq-ligne moyen"></div></div>
+      <div class="sq-carte"><div class="sq sq-image"></div><div class="sq sq-ligne court"></div><div class="sq sq-ligne"></div></div>
+    </div>
+  </main>
+</div>
+<noscript>Cette application a besoin de JavaScript pour fonctionner.</noscript>
+<script type="module" src="app.js"></script>
+</body>
+</html>
